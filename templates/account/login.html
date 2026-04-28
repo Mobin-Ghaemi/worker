@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}ورود | فارال{% endblock %}
+
+{% block content %}
+<section class="auth-wrap reveal in-view">
+    <article class="auth-panel">
+        <div class="auth-side">
+            <p class="kicker">Faral Workforce Engine</p>
+            <h1>ورود به پنل هوشمند تردد</h1>
+            <p>
+                تایمر زنده، ثبت خودکار تردد، مدیریت مرخصی و گزارش‌گیری دقیق در یک فضای یکپارچه.
+            </p>
+            <div class="hero-chips">
+                <span class="chip">حضور و غیاب</span>
+                <span class="chip">مرخصی</span>
+                <span class="chip">گزارش ماهانه</span>
+            </div>
+        </div>
+
+        <div class="auth-box">
+            <form method="post" class="stack">
+                {% csrf_token %}
+                <label>نام کاربری</label>
+                {{ form.username }}
+                <label>رمز عبور</label>
+                {{ form.password }}
+                {% if form.errors %}
+                    <p class="form-error">نام کاربری یا رمز عبور صحیح نیست.</p>
+                {% endif %}
+                <button type="submit" class="btn btn-glow">ورود به پنل</button>
+            </form>
+        </div>
+    </article>
+</section>
+{% endblock %}

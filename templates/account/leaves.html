@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}مرخصی‌ها{% endblock %}
+
+{% block content %}
+<section class="glass-card reveal in-view manage-head">
+    <div class="card-head split-head">
+        <div>
+            <p class="kicker">{{ month_label }}</p>
+            <h1>مرخصی‌های من</h1>
+            <p>ثبت مرخصی روزانه یا ساعتی و مشاهده تاریخچه در یک جدول ساده و تمیز.</p>
+        </div>
+        <button type="button" class="btn btn-glow" id="open-leave-form">ثبت مرخصی</button>
+    </div>
+</section>
+
+<section class="stat-grid">
+    <article class="stat-card reveal in-view" style="--delay:.05s;">
+        <span>کل درخواست‌ها</span>
+        <strong>{{ total_leave_count }}</strong>
+    </article>
+    <article class="stat-card reveal in-view" style="--delay:.1s;">
+        <span>در انتظار</span>
+        <strong>{{ pending_leave_count }}</strong>
+    </article>
+    <article class="stat-card reveal in-view" style="--delay:.15s;">
+        <span>تایید شده</span>
+        <strong>{{ approved_leave_count }}</strong>
+    </article>
+</section>
+
+<section class="glass-card reveal in-view" style="--delay:.18s;">
+    <div class="hero-chips">
+        <span class="chip">مرخصی روزانه ماه: {{ monthly_leave_days }} روز</span>
+        <span class="chip">مرخصی ساعتی ماه: {{ monthly_hourly_leave }} ساعت</span>
+    </div>
+</section>
+
+<div class="modal-backdrop" id="leave-form-modal" {% if leave_form.errors %}data-open-on-load="true"{% endif %}>
+    <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-form-title">
+        <header class="modal-head">
+            <h2 id="leave-form-title">فرم ثبت مرخصی</h2>
+            <button type="button" class="modal-close" id="close-leave-form" aria-label="بستن">×</button>
+        </header>
+        <div class="modal-body">
+            <form method="post" class="stack" id="leave-request-form">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="leave">
+
+                <label for="{{ leave_form.leave_type.id_for_label }}">{{ leave_form.leave_type.label }}</label>
+                {{ leave_form.leave_type }}
+                {% if leave_form.leave_type.errors %}
+                    <small class="form-error">{{ leave_form.leave_type.errors|striptags }}</small>
+                {% endif %}
+
+                <div id="daily-fields" class="stack">
+                    <label for="{{ leave_form.start_date.id_for_label }}">{{ leave_form.start_date.label }}</label>
+                    {{ leave_form.start_date }}
+                    <small class="form-hint">فرمت قابل قبول: 1405/02/08 (اعداد فارسی یا انگلیسی)</small>
+                    {% if leave_form.start_date.errors %}
+                        <small class="form-error">{{ leave_form.start_date.errors|striptags }}</small>
+                    {% endif %}
+
+                    <label for="{{ leave_form.end_date.id_for_label }}">{{ leave_form.end_date.label }}</label>
+                    {{ leave_form.end_date }}
+                    <small class="form-hint">فرمت قابل قبول: 1405/02/08</small>
+                    {% if leave_form.end_date.errors %}
+                        <small class="form-error">{{ leave_form.end_date.errors|striptags }}</small>
+                    {% endif %}
+                </div>
+
+                <div id="hourly-fields" class="stack">
+                    <label for="{{ leave_form.leave_date.id_for_label }}">{{ leave_form.leave_date.label }}</label>
+                    {{ leave_form.leave_date }}
+                    <small class="form-hint">فرمت قابل قبول: 1405/02/08</small>
+                    {% if leave_form.leave_date.errors %}
+                        <small class="form-error">{{ leave_form.leave_date.errors|striptags }}</small>
+                    {% endif %}
+
+                    <div class="feature-grid compact-grid">
+                        <div class="stack">
+                            <label for="{{ leave_form.start_time.id_for_label }}">{{ leave_form.start_time.label }}</label>
+                            {{ leave_form.start_time }}
+                            <small class="form-hint">فرمت ساعت: HH:MM</small>
+                            {% if leave_form.start_time.errors %}
+                                <small class="form-error">{{ leave_form.start_time.errors|striptags }}</small>
+                            {% endif %}
+                        </div>
+                        <div class="stack">
+                            <label for="{{ leave_form.end_time.id_for_label }}">{{ leave_form.end_time.label }}</label>
+                            {{ leave_form.end_time }}
+                            <small class="form-hint">فرمت ساعت: HH:MM</small>
+                            {% if leave_form.end_time.errors %}
+                                <small class="form-error">{{ leave_form.end_time.errors|striptags }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <label for="{{ leave_form.reason.id_for_label }}">{{ leave_form.reason.label }}</label>
+                {{ leave_form.reason }}
+                {% if leave_form.reason.errors %}
+                    <small class="form-error">{{ leave_form.reason.errors|striptags }}</small>
+                {% endif %}
+
+                {% if leave_form.non_field_errors %}
+                    <small class="form-error">{{ leave_form.non_field_errors|striptags }}</small>
+                {% endif %}
+
+                <button type="submit" class="btn btn-glow">ثبت درخواست مرخصی</button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<section class="glass-card reveal in-view" style="--delay:.2s;">
+    <header class="card-head">
+        <h2>جدول مرخصی‌ها</h2>
+    </header>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>نوع</th>
+                    <th>بازه/زمان</th>
+                    <th>مقدار</th>
+                    <th>وضعیت</th>
+                    <th>توضیحات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in recent_leaves %}
+                    <tr>
+                        <td>{% if leave.leave_type == 'hourly' %}ساعتی{% else %}روزانه{% endif %}</td>
+                        <td>
+                            {% if leave.leave_type == 'hourly' %}
+                                {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{ leave.end_time|time:'H:i' }}
+                            {% else %}
+                                {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if leave.leave_type == 'hourly' %}
+                                {{ leave.hours_count }} ساعت
+                            {% else %}
+                                {{ leave.days_count }} روز
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if leave.status == 'approved' %}
+                                <span class="pill approved">تایید شده</span>
+                            {% elif leave.status == 'rejected' %}
+                                <span class="pill rejected">رد شده</span>
+                            {% else %}
+                                <span class="pill pending">در انتظار</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ leave.reason|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">مرخصی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<script>
+    (function () {
+        const selector = document.getElementById('leave-type-selector');
+        const daily = document.getElementById('daily-fields');
+        const hourly = document.getElementById('hourly-fields');
+        const openBtn = document.getElementById('open-leave-form');
+        const closeBtn = document.getElementById('close-leave-form');
+        const formModal = document.getElementById('leave-form-modal');
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const MODAL_CLOSE_MS = prefersReducedMotion ? 0 : 360;
+        let closeTimer = null;
+
+        if (selector && daily && hourly) {
+            function syncLeaveFields() {
+                const isHourly = selector.value === 'hourly';
+                daily.style.display = isHourly ? 'none' : 'grid';
+                hourly.style.display = isHourly ? 'grid' : 'none';
+            }
+            selector.addEventListener('change', syncLeaveFields);
+            syncLeaveFields();
+        }
+
+        function openModal() {
+            if (!formModal) {
+                return;
+            }
+            if (closeTimer) {
+                clearTimeout(closeTimer);
+                closeTimer = null;
+            }
+            formModal.classList.remove('closing');
+            if (!prefersReducedMotion) {
+                formModal.classList.remove('opening');
+                void formModal.offsetWidth;
+                formModal.classList.add('opening');
+            }
+            formModal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            const firstInput = formModal.querySelector('select, input, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
+            if (!prefersReducedMotion) {
+                setTimeout(function () {
+                    formModal.classList.remove('opening');
+                }, 520);
+            }
+        }
+
+        function closeModal() {
+            if (!formModal || !formModal.classList.contains('open')) {
+                return;
+            }
+            formModal.classList.remove('opening');
+            formModal.classList.add('closing');
+            if (closeTimer) {
+                clearTimeout(closeTimer);
+            }
+            closeTimer = setTimeout(function () {
+                formModal.classList.remove('open');
+                formModal.classList.remove('closing');
+                document.body.style.overflow = '';
+                closeTimer = null;
+            }, MODAL_CLOSE_MS);
+        }
+
+        if (openBtn) {
+            openBtn.addEventListener('click', openModal);
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeModal);
+        }
+
+        if (formModal) {
+            formModal.addEventListener('click', function (event) {
+                if (event.target === formModal) {
+                    closeModal();
+                }
+            });
+        }
+
+        window.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        if (formModal && formModal.dataset.openOnLoad === 'true') {
+            openModal();
+        }
+    })();
+</script>
+{% endblock %}

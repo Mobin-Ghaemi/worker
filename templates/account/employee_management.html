@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}مدیریت کارمندان{% endblock %}
+
+{% block content %}
+<section class="glass-card reveal in-view manage-head">
+    <div class="card-head split-head">
+        <div>
+            <p class="kicker">Superuser Workspace</p>
+            <h1>مدیریت کارمندان</h1>
+            <p>افزودن کارمند و تنظیم تارگت‌ها در یک جدول ساده.</p>
+        </div>
+        <button type="button" class="btn btn-glow" id="open-employee-modal">افزودن کارمند</button>
+    </div>
+</section>
+
+<div class="modal-backdrop" id="employee-modal" {% if add_form.errors %}data-open-on-load="true"{% endif %}>
+    <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-form-title">
+        <header class="modal-head">
+            <h2 id="employee-form-title">افزودن کارمند</h2>
+            <button type="button" class="modal-close" id="close-employee-modal" aria-label="بستن">×</button>
+        </header>
+        <div class="modal-body">
+            <form method="post" class="stack">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_employee">
+                {% for field in add_form %}
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.name == 'hire_date' %}
+                        <small class="form-hint">تاریخ را شمسی وارد کنید. مثال: 1405/02/08</small>
+                    {% endif %}
+                    {% if field.errors %}
+                        <small class="form-error">{{ field.errors|striptags }}</small>
+                    {% endif %}
+                {% endfor %}
+                {% if add_form.non_field_errors %}
+                    <small class="form-error">{{ add_form.non_field_errors|striptags }}</small>
+                {% endif %}
+                <button type="submit" class="btn btn-glow">ثبت کارمند جدید</button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<section class="glass-card reveal in-view" style="--delay:.14s;">
+    <header class="card-head">
+        <h2>جدول کارمندان</h2>
+    </header>
+
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>نام کاربری</th>
+                    <th>نام کامل</th>
+                    <th>سمت</th>
+                    <th>تارگت روزانه (ساعت)</th>
+                    <th>تارگت ماهانه (ساعت)</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in employees %}
+                    <tr>
+                        <td>{{ employee.username }}</td>
+                        <td>{{ employee.get_full_name|default:'-' }}</td>
+                        <td>{{ employee.employee_profile.job_title|default:'-' }}</td>
+                        <td>
+                            <input
+                                name="daily_target_hours"
+                                type="number"
+                                min="1"
+                                value="{{ employee.employee_profile.daily_target_hours }}"
+                                class="f-input employee-table-input"
+                                form="targets-form-{{ employee.id }}"
+                            >
+                        </td>
+                        <td>
+                            <input
+                                name="monthly_target_hours"
+                                type="number"
+                                min="1"
+                                value="{{ employee.employee_profile.monthly_target_hours }}"
+                                class="f-input employee-table-input"
+                                form="targets-form-{{ employee.id }}"
+                            >
+                        </td>
+                        <td>
+                            <div class="employee-actions">
+                                <form id="targets-form-{{ employee.id }}" method="post" class="inline-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_targets">
+                                    <input type="hidden" name="user_id" value="{{ employee.id }}">
+                                    <button type="submit" class="btn btn-xs btn-glow">ذخیره تارگت</button>
+                                </form>
+
+                                <form method="post" class="inline-form" onsubmit="return confirm('کارمند {{ employee.username }} حذف شود؟');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_employee">
+                                    <input type="hidden" name="user_id" value="{{ employee.id }}">
+                                    <button type="submit" class="btn btn-xs btn-danger">حذف</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6">هنوز کارمندی ثبت نشده است.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<script>
+    (function () {
+        const openBtn = document.getElementById('open-employee-modal');
+        const closeBtn = document.getElementById('close-employee-modal');
+        const modal = document.getElementById('employee-modal');
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const MODAL_CLOSE_MS = prefersReducedMotion ? 0 : 360;
+        let closeTimer = null;
+
+        function openModal() {
+            if (!modal) {
+                return;
+            }
+            if (closeTimer) {
+                clearTimeout(closeTimer);
+                closeTimer = null;
+            }
+            modal.classList.remove('closing');
+            if (!prefersReducedMotion) {
+                modal.classList.remove('opening');
+                void modal.offsetWidth;
+                modal.classList.add('opening');
+            }
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+            const firstInput = modal.querySelector('input, select, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
+            if (!prefersReducedMotion) {
+                setTimeout(function () {
+                    modal.classList.remove('opening');
+                }, 520);
+            }
+        }
+
+        function closeModal() {
+            if (!modal || !modal.classList.contains('open')) {
+                return;
+            }
+            modal.classList.remove('opening');
+            modal.classList.add('closing');
+            if (closeTimer) {
+                clearTimeout(closeTimer);
+            }
+            closeTimer = setTimeout(function () {
+                modal.classList.remove('open');
+                modal.classList.remove('closing');
+                document.body.style.overflow = '';
+                closeTimer = null;
+            }, MODAL_CLOSE_MS);
+        }
+
+        if (openBtn) {
+            openBtn.addEventListener('click', openModal);
+        }
+        if (closeBtn) {
+            closeBtn.addEventListener('click', closeModal);
+        }
+        if (modal) {
+            modal.addEventListener('click', function (event) {
+                if (event.target === modal) {
+                    closeModal();
+                }
+            });
+        }
+
+        window.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        if (modal && modal.dataset.openOnLoad === 'true') {
+            openModal();
+        }
+    })();
+</script>
+{% endblock %}

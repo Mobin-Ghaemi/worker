@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}حساب کاربری{% endblock %}
+
+{% block content %}
+<section class="glass-card reveal in-view manage-head">
+    <p class="kicker">{{ month_label }}</p>
+    <h1>{{ request.user.get_full_name|default:request.user.username }}</h1>
+    <p class="side-profile-sub">@{{ request.user.username }}</p>
+    <div class="hero-chips">
+        <span class="chip">سمت: {{ profile_obj.job_title|default:'ثبت نشده' }}</span>
+        <span class="chip">استخدام: {{ profile_obj.hire_date|jalali_date }}</span>
+        <span class="chip">هدف روزانه: {{ daily_target_hours }} ساعت</span>
+        <span class="chip">هدف ماهانه: {{ monthly_target_hours }} ساعت</span>
+    </div>
+    <div class="action-row" style="margin-top:10px;">
+        <a href="{% url 'account:leaves' %}" class="btn btn-glow">مرخصی‌ها</a>
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">داشبورد</a>
+    </div>
+</section>
+
+<section class="stat-grid">
+    <article class="stat-card reveal in-view" style="--delay:.05s;">
+        <span>تعداد کل ترددها</span>
+        <strong>{{ total_attendance_count }}</strong>
+    </article>
+    <article class="stat-card reveal in-view" style="--delay:.08s;">
+        <span>تعداد کل مرخصی‌ها</span>
+        <strong>{{ total_leave_count }}</strong>
+    </article>
+    <article class="stat-card reveal in-view" style="--delay:.12s;">
+        <span>ساعت کاری روزانه</span>
+        <strong>{{ daily_work_text }}</strong>
+    </article>
+    <article class="stat-card reveal in-view" style="--delay:.16s;">
+        <span>ساعت کاری ماهانه</span>
+        <strong>{{ monthly_work_text }}</strong>
+    </article>
+</section>
+
+<section class="glass-card reveal in-view" style="--delay:.2s;">
+    <header class="card-head">
+        <h2>ترددهای اخیر من</h2>
+    </header>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>شروع</th>
+                    <th>پایان</th>
+                    <th>مدت</th>
+                    <th>توضیح</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in recent_attendance %}
+                    <tr>
+                        <td>{{ row.start_time|jalali_datetime }}</td>
+                        <td>{% if row.end_time %}{{ row.end_time|jalali_datetime }}{% else %}<span class="pill pending">فعال</span>{% endif %}</td>
+                        <td>{% if row.end_time %}{{ row.duration_minutes }} دقیقه{% else %}-{% endif %}</td>
+                        <td>{{ row.note|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">هنوز ترددی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,426 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}داشبورد حضور و غیاب{% endblock %}
+
+{% block content %}
+<section class="dash-hero reveal" id="hero">
+    <div class="hero-content">
+        <p class="kicker">{{ month_label }}</p>
+        <h1>سلام {{ request.user.get_full_name|default:request.user.username }}</h1>
+        <p>ثبت شروع/پایان شیفت، بررسی ساعات ماه و مدیریت مرخصی در یک صفحه ساده.</p>
+
+        <div class="hero-chips">
+            <span class="chip" id="month-sessions-chip">تردد ماه: {{ monthly_sessions_count }}</span>
+            <span class="chip">مرخصی تاییدشده: {{ approved_leave_days }} روز</span>
+            <span class="chip">هدف روزانه: {{ daily_target_hours }} ساعت</span>
+        </div>
+    </div>
+
+    <aside class="timer-widget {% if active_session %}active{% endif %}" id="timer-widget">
+        <div class="timer-ring" id="timer-ring" style="--ring-progress:0; --ring-overflow:0;">
+            <svg viewBox="0 0 200 200" class="ring-svg" aria-hidden="true">
+                <defs>
+                    <linearGradient id="ring-main-gradient" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#00e0ff"></stop>
+                        <stop offset="100%" stop-color="#59ffbe"></stop>
+                    </linearGradient>
+                </defs>
+                <circle class="ring-track" cx="100" cy="100" r="78"></circle>
+                <circle class="ring-progress" cx="100" cy="100" r="78"></circle>
+                <circle class="ring-overflow-track" cx="100" cy="100" r="88"></circle>
+                <circle class="ring-overflow" cx="100" cy="100" r="88"></circle>
+            </svg>
+            <span class="overflow-badge" id="overflow-badge">+0 دور</span>
+            <div class="timer-center">
+                <span class="timer-label">LIVE TIMER</span>
+                <div class="live-clock" id="live-clock" aria-live="polite">
+                    <div class="clock-segment">
+                        <strong class="clock-value" id="clock-hour">00</strong>
+                        <small>ساعت</small>
+                    </div>
+                    <span class="clock-sep">:</span>
+                    <div class="clock-segment">
+                        <strong class="clock-value" id="clock-minute">00</strong>
+                        <small>دقیقه</small>
+                    </div>
+                    <span class="clock-sep">:</span>
+                    <div class="clock-segment">
+                        <strong class="clock-value" id="clock-second">00</strong>
+                        <small>ثانیه</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <small class="timer-meta-outside {% if not active_session %}is-idle{% endif %}" id="timer-meta">
+            <span class="timer-meta-label" id="timer-meta-label">{% if active_session %}شروع:{% endif %}</span>
+            <bdi class="timer-meta-value" id="timer-meta-value" {% if active_session %}dir="ltr"{% endif %}>
+                {% if active_session %}
+                    {{ active_session.start_time|jalali_datetime }}
+                {% else %}
+                    در انتظار شروع شیفت
+                {% endif %}
+            </bdi>
+        </small>
+    </aside>
+</section>
+
+<section class="stat-grid">
+    <article class="stat-card reveal" style="--delay:.05s;">
+        <span>مجموع کار این ماه</span>
+        <strong id="monthly-total-time">{{ monthly_total_time_text }}</strong>
+        <small id="monthly-sessions-hint">{{ monthly_sessions_count }} تردد ثبت شده</small>
+    </article>
+
+    <article class="stat-card reveal" style="--delay:.12s;">
+        <span>هدف ماهانه</span>
+        <strong>{{ monthly_target_hours }} ساعت</strong>
+        {% widthratio monthly_total_minutes monthly_target_minutes 100 as progress_percent %}
+        <div class="meter">
+            <div class="meter-fill" style="width:{% if progress_percent > 100 %}100{% else %}{{ progress_percent }}{% endif %}%"></div>
+        </div>
+    </article>
+
+    <article class="stat-card reveal" style="--delay:.18s;">
+        <span>مرخصی تاییدشده</span>
+        <strong>{{ approved_leave_days }} روز</strong>
+        <small>{{ pending_leave_days }} روز در انتظار بررسی</small>
+    </article>
+</section>
+
+<section class="feature-grid">
+    <article class="glass-card reveal" style="--delay:.1s;">
+        <header class="card-head">
+            <h2>ثبت تردد</h2>
+            <span class="head-badge">Instant Action</span>
+        </header>
+        <form method="post" class="stack" id="attendance-form" data-endpoint="{% url 'task:attendance_action' %}">
+            {% csrf_token %}
+            <label for="note">توضیحات (اختیاری)</label>
+            <input id="note" name="note" class="f-input" placeholder="مثال: جلسه مشتری / کار حضوری" />
+            <div class="action-row">
+                <button id="start-btn" type="submit" name="action" value="start" class="btn btn-glow" {% if active_session %}disabled{% endif %}>شروع</button>
+                <button id="end-btn" type="submit" name="action" value="end" class="btn btn-sun" {% if not active_session %}disabled{% endif %}>پایان</button>
+            </div>
+        </form>
+    </article>
+
+    <article class="glass-card reveal" style="--delay:.18s;">
+        <header class="card-head">
+            <h2>دسترسی سریع</h2>
+        </header>
+        <div class="stack">
+            <a href="{% url 'account:leaves' %}" class="btn btn-glow">ثبت و مدیریت مرخصی</a>
+            <a href="{% url 'account:profile' %}" class="btn btn-outline">نمای کلی حساب کاربری</a>
+        </div>
+    </article>
+</section>
+
+<section class="glass-card reveal" style="--delay:.12s;">
+    <header class="card-head"><h2>ترددهای اخیر</h2></header>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>شروع</th>
+                    <th>پایان</th>
+                    <th>مدت</th>
+                    <th>توضیح</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for session in recent_sessions %}
+                    <tr>
+                        <td>{{ session.start_time|jalali_datetime }}</td>
+                        <td>{% if session.end_time %}{{ session.end_time|jalali_datetime }}{% else %}<span class="pill pending">فعال</span>{% endif %}</td>
+                        <td>{% if session.end_time %}{{ session.duration_minutes }} دقیقه{% else %}-{% endif %}</td>
+                        <td>{{ session.note|default:'-' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">هنوز ترددی ثبت نشده است.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% if request.user.is_superuser %}
+<section class="glass-card reveal" style="--delay:.15s;">
+    <header class="card-head split-head">
+        <h2>کنترل سوپر یوزر</h2>
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">افزودن کارمند</a>
+    </header>
+
+    {% if team_overview %}
+        <div class="mini-stat-row">
+            <article class="mini-stat"><span>کارمندان</span><strong>{{ team_overview.employees_count }}</strong></article>
+            <article class="mini-stat"><span>آنلاین</span><strong>{{ team_overview.active_now }}</strong></article>
+            <article class="mini-stat"><span>مرخصی در انتظار</span><strong>{{ team_overview.pending_leaves }}</strong></article>
+        </div>
+    {% endif %}
+
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>کارمند</th>
+                    <th>بازه/زمان</th>
+                    <th>توضیح</th>
+                    <th>عملیات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for leave in pending_team_leaves %}
+                    <tr>
+                        <td>{{ leave.user.get_full_name|default:leave.user.username }}</td>
+                        <td>
+                            {% if leave.leave_type == 'hourly' %}
+                                {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{ leave.end_time|time:'H:i' }}
+                            {% else %}
+                                {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
+                            {% endif %}
+                        </td>
+                        <td>{{ leave.reason|default:'-' }}</td>
+                        <td>
+                            <form method="post" class="action-row">
+                                {% csrf_token %}
+                                <input type="hidden" name="leave_id" value="{{ leave.id }}">
+                                <button type="submit" name="action" value="approve_leave" class="btn btn-xs btn-glow">تایید</button>
+                                <button type="submit" name="action" value="reject_leave" class="btn btn-xs btn-danger">رد</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">درخواستی برای بررسی وجود ندارد.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
+<script>
+    (function () {
+        let isActive = {{ active_session|yesno:'true,false' }};
+        let totalSeconds = Number('{{ active_elapsed_seconds|default:0 }}');
+        const minCloseSeconds = 60;
+        const targetSeconds = Number('{{ daily_target_seconds|default:28800 }}') || (8 * 3600);
+
+        const hourEl = document.getElementById('clock-hour');
+        const minuteEl = document.getElementById('clock-minute');
+        const secondEl = document.getElementById('clock-second');
+        const timerMetaEl = document.getElementById('timer-meta');
+        const timerMetaLabelEl = document.getElementById('timer-meta-label');
+        const timerMetaValueEl = document.getElementById('timer-meta-value');
+        const ringEl = document.getElementById('timer-ring');
+        const overflowBadgeEl = document.getElementById('overflow-badge');
+        const attendanceForm = document.getElementById('attendance-form');
+        const startBtn = document.getElementById('start-btn');
+        const endBtn = document.getElementById('end-btn');
+        const timerWidget = document.getElementById('timer-widget');
+        const monthlyTotalEl = document.getElementById('monthly-total-time');
+        const monthlySessionsHintEl = document.getElementById('monthly-sessions-hint');
+        const monthSessionsChipEl = document.getElementById('month-sessions-chip');
+        const lastClock = {
+            hour: null,
+            minute: null,
+            second: null
+        };
+
+        function getClockParts(seconds) {
+            return {
+                hour: String(Math.floor(seconds / 3600)).padStart(2, '0'),
+                minute: String(Math.floor((seconds % 3600) / 60)).padStart(2, '0'),
+                second: String(seconds % 60).padStart(2, '0')
+            };
+        }
+
+        function animateClockValue(element, unit, value) {
+            if (!element || lastClock[unit] === value) {
+                return;
+            }
+            element.textContent = value;
+            element.classList.remove('tick');
+            void element.offsetWidth;
+            element.classList.add('tick');
+            lastClock[unit] = value;
+        }
+
+        function renderClock(seconds) {
+            const parts = getClockParts(seconds);
+            animateClockValue(hourEl, 'hour', parts.hour);
+            animateClockValue(minuteEl, 'minute', parts.minute);
+            animateClockValue(secondEl, 'second', parts.second);
+        }
+
+        function showToast(message, type) {
+            const shell = document.querySelector('.app-shell');
+            let stack = document.querySelector('.messages-stack');
+            if (!stack) {
+                stack = document.createElement('section');
+                stack.className = 'stack messages-stack';
+                shell.prepend(stack);
+            }
+
+            const toast = document.createElement('article');
+            toast.className = 'toast ' + (type || 'success');
+            toast.textContent = message;
+            stack.prepend(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-4px)';
+                setTimeout(() => toast.remove(), 260);
+            }, 3200);
+        }
+
+        function renderTimerMeta(metaText) {
+            if (!timerMetaEl || !timerMetaLabelEl || !timerMetaValueEl) {
+                return;
+            }
+
+            const text = String(metaText || '').trim();
+            if (text.startsWith('شروع:')) {
+                timerMetaLabelEl.textContent = 'شروع:';
+                timerMetaValueEl.textContent = text.replace(/^شروع:\s*/, '');
+                timerMetaValueEl.setAttribute('dir', 'ltr');
+                timerMetaEl.classList.remove('is-idle');
+                return;
+            }
+
+            timerMetaLabelEl.textContent = '';
+            timerMetaValueEl.textContent = text || 'در انتظار شروع شیفت';
+            timerMetaValueEl.removeAttribute('dir');
+            timerMetaEl.classList.add('is-idle');
+        }
+
+        function drawTimer() {
+            renderClock(totalSeconds);
+
+            const rawProgress = totalSeconds / targetSeconds;
+            const mainProgress = Math.min(1, rawProgress);
+            const loops = Math.floor(rawProgress);
+            const overflowProgress = rawProgress > 1 ? rawProgress - loops : 0;
+
+            ringEl.style.setProperty('--ring-progress', mainProgress.toFixed(4));
+            ringEl.style.setProperty('--ring-overflow', overflowProgress.toFixed(4));
+
+            const overflowOn = rawProgress > 1;
+            ringEl.classList.toggle('overflow-on', overflowOn);
+            overflowBadgeEl.classList.toggle('show', overflowOn);
+            if (overflowOn) {
+                overflowBadgeEl.textContent = '+' + loops + ' دور';
+            }
+
+            updateEndLock();
+        }
+
+        function updateEndLock() {
+            if (!endBtn) {
+                return;
+            }
+
+            if (!isActive) {
+                endBtn.disabled = true;
+                endBtn.title = '';
+                return;
+            }
+
+            const locked = totalSeconds < minCloseSeconds;
+            endBtn.disabled = locked;
+            endBtn.title = locked ? ('برای پایان، ' + (minCloseSeconds - totalSeconds) + ' ثانیه دیگر صبر کنید') : '';
+        }
+
+        function setActiveState(active) {
+            isActive = active;
+            startBtn.disabled = active;
+            timerWidget.classList.toggle('active', active);
+            if (!active) {
+                totalSeconds = 0;
+            }
+            drawTimer();
+        }
+
+        drawTimer();
+
+        setInterval(() => {
+            if (isActive) {
+                totalSeconds += 1;
+                drawTimer();
+            }
+        }, 1000);
+
+        if (attendanceForm) {
+            attendanceForm.addEventListener('submit', async (event) => {
+                const submitter = event.submitter;
+                if (!submitter) {
+                    return;
+                }
+
+                const action = submitter.value;
+                if (action !== 'start' && action !== 'end') {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (action === 'end' && isActive && totalSeconds < minCloseSeconds) {
+                    showToast(
+                        'برای ثبت پایان باید حداقل ۱ دقیقه از شروع بگذرد. '
+                            + (minCloseSeconds - totalSeconds)
+                            + ' ثانیه باقی مانده است.',
+                        'warning'
+                    );
+                    return;
+                }
+
+                const formData = new FormData(attendanceForm);
+                formData.set('action', action);
+
+                try {
+                    const response = await fetch(attendanceForm.dataset.endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData,
+                        credentials: 'same-origin'
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) {
+                        showToast(data.message || 'عملیات انجام نشد.', 'error');
+                        return;
+                    }
+
+                    totalSeconds = Number(data.active_elapsed_seconds || 0);
+                    setActiveState(Boolean(data.active_session));
+
+                    renderTimerMeta(data.active_started_at);
+                    monthlyTotalEl.textContent = data.monthly_total_time_text;
+                    monthlySessionsHintEl.textContent = data.monthly_sessions_hint;
+                    monthSessionsChipEl.textContent = 'تردد ماه: ' + data.monthly_sessions_count;
+
+                    showToast(data.message, 'success');
+                } catch (error) {
+                    showToast('ارتباط با سرور برقرار نشد.', 'error');
+                }
+            });
+        }
+
+        renderTimerMeta('{% if active_session %}شروع: {{ active_session.start_time|jalali_datetime }}{% else %}در انتظار شروع شیفت{% endif %}');
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in-view');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.2 });
+
+        document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+    })();
+</script>
+{% endblock %}

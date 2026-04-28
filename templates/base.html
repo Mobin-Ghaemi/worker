@@ -1,0 +1,82 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}سامانه تردد فارال{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <div class="site-pattern" aria-hidden="true"></div>
+    <div class="bg-gradient bg-gradient-1" aria-hidden="true"></div>
+    <div class="bg-gradient bg-gradient-2" aria-hidden="true"></div>
+
+    <header class="main-header">
+        <a href="{% if request.user.is_authenticated %}{% url 'task:dashboard' %}{% else %}{% url 'account:login' %}{% endif %}" class="brand-wrap">
+            <span class="brand-mark" aria-hidden="true"></span>
+            <span class="brand-text">
+                <strong class="brand-title">Faral Timeflow</strong>
+                <small class="brand-sub">سامانه یکپارچه حضور و مرخصی</small>
+            </span>
+        </a>
+
+        <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="main-nav">
+            منو
+        </button>
+
+        <nav class="main-nav" id="main-nav">
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'task:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">داشبورد</a>
+                <a href="{% url 'account:profile' %}" class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">حساب کاربری</a>
+                <a href="{% url 'account:leaves' %}" class="nav-link {% if request.resolver_match.url_name == 'leaves' %}active{% endif %}">مرخصی‌ها</a>
+                {% if request.user.is_superuser %}
+                    <a href="{% url 'account:employee_management' %}" class="nav-link {% if request.resolver_match.url_name == 'employee_management' %}active{% endif %}">مدیریت کارمندان</a>
+                {% endif %}
+                <a href="/admin/" target="_blank" rel="noopener" class="nav-link">ادمین</a>
+                <form method="post" action="{% url 'account:logout' %}" class="inline-form">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link nav-button">خروج</button>
+                </form>
+            {% else %}
+                <a href="{% url 'account:login' %}" class="nav-link">ورود</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main class="app-shell" id="main-content">
+        {% if messages %}
+            <section class="stack messages-stack">
+                {% for message in messages %}
+                    <article class="toast {{ message.tags }}">{{ message }}</article>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        (function () {
+            const toggleBtn = document.getElementById('nav-toggle');
+            const nav = document.getElementById('main-nav');
+
+            if (!toggleBtn || !nav) {
+                return;
+            }
+
+            toggleBtn.addEventListener('click', function () {
+                const isOpen = nav.classList.toggle('open');
+                toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
+            nav.querySelectorAll('a, button').forEach((item) => {
+                item.addEventListener('click', function () {
+                    nav.classList.remove('open');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                });
+            });
+        })();
+    </script>
+</body>
+</html>
