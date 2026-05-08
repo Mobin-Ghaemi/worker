@@ -1,4 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -26,14 +27,43 @@ class AttendanceSession(models.Model):
     def is_open(self):
         return self.end_time is None
 
+    @staticmethod
+    def _to_local(dt):
+        if timezone.is_aware(dt):
+            return timezone.localtime(dt)
+        return dt
+
+    def clean(self):
+        if not self.end_time:
+            return
+
+        start_local = self._to_local(self.start_time)
+        end_local = self._to_local(self.end_time)
+
+        if end_local <= start_local:
+            raise ValidationError('ساعت پایان باید بعد از ساعت شروع باشد.')
+
+        if end_local.date() != start_local.date():
+            raise ValidationError('تردد نباید به روز بعد منتقل شود.')
+
+        if (end_local - start_local) > timedelta(hours=24):
+            raise ValidationError('مدت هر تردد نباید بیشتر از ۲۴ ساعت باشد.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        if self.end_time:
+            total_seconds = max(0, int((self.end_time - self.start_time).total_seconds()))
+            self.duration_minutes = total_seconds // 60
+        else:
+            self.duration_minutes = 0
+        super().save(*args, **kwargs)
+
     def close_session(self, end_time=None):
         if self.end_time:
             return
 
         end = end_time or timezone.now()
         self.end_time = end
-        total_seconds = max(0, int((self.end_time - self.start_time).total_seconds()))
-        self.duration_minutes = total_seconds // 60
         self.save(update_fields=['end_time', 'duration_minutes'])
 
 

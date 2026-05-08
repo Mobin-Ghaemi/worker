@@ -1,0 +1,946 @@
+{% extends 'base.html' %}
+
+{% block title %}مدیریت سمت‌ها{% endblock %}
+
+{% block content %}
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-glow">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity">
+                <span class="profile-avatar">🏷️</span>
+                <div>
+                    <h2 class="side-profile-title">سمت‌ها</h2>
+                    <p class="side-profile-sub">تعریف و انتساب سمت به کارمندان</p>
+                </div>
+            </div>
+            <div class="side-badges">
+                <span class="chip chip-active">{{ positions.count }} سمت تعریف‌شده</span>
+                <span class="chip">{{ employees.count }} کارمند</span>
+            </div>
+            <button type="button" class="btn btn-glow"
+                style="width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;"
+                onclick="openPosModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                افزودن سمت جدید
+            </button>
+        </article>
+
+        {% if positions %}
+        <article class="side-profile-card reveal in-view" style="--delay:.12s;">
+            <h3 style="font-size:.88rem;font-weight:700;color:#1e3a5f;margin-bottom:12px;">📋 سمت‌های تعریف‌شده</h3>
+            <div style="display:grid;gap:8px;">
+                {% for pos in positions %}
+                <div class="pos-sidebar-item">
+                    <span class="pos-dot"
+                        style="background:{{ pos.color }};box-shadow:0 0 6px {{ pos.color }}88;"></span>
+                    <div style="flex:1;min-width:0;">
+                        <div
+                            style="font-weight:600;font-size:.85rem;color:#1e3a5f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            {{ pos.name }}</div>
+                        <div style="font-size:.72rem;color:var(--text-muted);">{{ pos.employees.count }} کارمند{% if
+                            pos.allowed_pages %} · {{ pos.allowed_pages|length }} صفحه مجاز{% else %} · دسترسی کامل{%
+                            endif %}</div>
+                    </div>
+                    <button type="button" class="psi-btn psi-edit"
+                        onclick="openPosModal({{ pos.id }}, '{{ pos.name|escapejs }}', '{{ pos.description|escapejs }}', '{{ pos.color }}', {{ pos.allowed_pages|default:'[]'|safe }})"
+                        title="ویرایش">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </button>
+                    <form method="post" style="display:contents;"
+                        onsubmit="return confirm('حذف سمت «{{ pos.name }}»؟');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete_position">
+                        <input type="hidden" name="position_id" value="{{ pos.id }}">
+                        <button type="submit" class="psi-btn psi-del" title="حذف">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </article>
+        {% endif %}
+    </aside>
+
+    <div class="profile-main">
+        {% if messages %}
+        <div style="margin-bottom:16px;display:grid;gap:8px;">
+            {% for msg in messages %}
+            <div class="alert alert-{{ msg.tags }}" style="border-radius:12px;padding:12px 16px;font-size:.88rem;">{{
+                msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <section class="glass-card reveal in-view page-intro" style="padding:28px 32px 32px;">
+            <div class="card-head split-head" style="margin-bottom:24px;">
+                <div>
+                    <p class="kicker">Position Management</p>
+                    <h1>انتساب سمت به کارمندان</h1>
+                    <p style="color:var(--text-muted);font-size:.88rem;margin-top:6px;">برای هر کارمند یک سمت انتخاب
+                        کنید.</p>
+                </div>
+            </div>
+            {% if not positions %}
+            <div style="text-align:center;padding:48px 0;color:var(--text-muted);">
+                <div style="font-size:3rem;margin-bottom:14px;">🏷️</div>
+                <p style="margin-bottom:18px;">هنوز سمتی تعریف نشده.</p>
+                <button type="button" class="btn btn-glow" onclick="openPosModal()">➕ افزودن اولین سمت</button>
+            </div>
+            {% elif not employees %}
+            <div style="text-align:center;padding:40px 0;color:var(--text-muted);">
+                <div style="font-size:2.5rem;margin-bottom:12px;">👥</div>
+                <p>هیچ کارمندی یافت نشد.</p>
+            </div>
+            {% else %}
+            <div class="table-wrap" style="overflow-x:auto;">
+                <table class="data-table" style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            <th>کارمند</th>
+                            <th>سمت فعلی</th>
+                            <th>تغییر سمت</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in employees %}
+                        <tr class="reveal in-view" style="--delay:{{ forloop.counter0 }}00ms;">
+                            <td style="padding:12px 14px;vertical-align:middle;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    {% if emp.avatar %}<img src="{{ emp.avatar.url }}" alt="" class="emp-avatar-img">
+                                    {% else %}<span class="emp-avatar-letter">{{
+                                        emp.user.get_full_name|first|default:emp.user.username|first|upper }}</span>{%
+                                    endif %}
+                                    <div>
+                                        <div style="font-weight:600;color:#1e3a5f;">{{
+                                            emp.user.get_full_name|default:emp.user.username }}</div>
+                                        <div style="font-size:.78rem;color:var(--text-muted);">{{ emp.user.username }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:12px 14px;vertical-align:middle;">
+                                {% if emp.position %}<span class="pos-badge" style="--pc:{{ emp.position.color }};">{{
+                                    emp.position.name }}</span>
+                                {% else %}<span class="chip" style="color:var(--text-muted);">—</span>{% endif %}
+                            </td>
+                            <td style="padding:12px 14px;vertical-align:middle;">
+                                <form method="post" style="display:flex;align-items:center;gap:8px;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="assign_position">
+                                    <input type="hidden" name="user_id" value="{{ emp.user.id }}">
+                                    <select name="position_id" class="f-input"
+                                        style="min-width:160px;padding:6px 10px;font-size:.85rem;">
+                                        <option value="">— بدون سمت —</option>
+                                        {% for pos in positions %}<option value="{{ pos.id }}" {% if
+                                            emp.position_id==pos.id %}selected{% endif %}>{{ pos.name }}</option>{%
+                                        endfor %}
+                                    </select>
+                                    <button type="submit" class="btn btn-glow"
+                                        style="padding:6px 16px;font-size:.82rem;min-width:0;">ثبت</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if positions %}
+        <section style="margin-top:24px;">
+            <h2 style="font-size:1rem;font-weight:700;color:#1e3a5f;margin-bottom:16px;">📊 تفکیک سمت‌ها</h2>
+            <div class="pos-cards-grid">
+                {% for pos in positions %}
+                <div class="pos-summary-card reveal in-view"
+                    style="--pc:{{ pos.color }};--delay:{{ forloop.counter0 }}00ms;"
+                    onclick="openPosModal({{ pos.id }}, '{{ pos.name|escapejs }}', '{{ pos.description|escapejs }}', '{{ pos.color }}', {{ pos.allowed_pages|default:'[]'|safe }})">
+                    <div class="pos-sc-top">
+                        <span class="pos-sc-dot"></span>
+                        <strong>{{ pos.name }}</strong>
+                        <span class="pos-sc-edit-hint">✏️</span>
+                    </div>
+                    {% if pos.description %}<p class="pos-sc-desc">{{ pos.description }}</p>{% endif %}
+                    <div class="pos-sc-count">{{ pos.employees.count }}</div>
+                    <div class="pos-sc-label">کارمند</div>
+                    <div class="pos-sc-access">{% if pos.allowed_pages %}🔐 {{ pos.allowed_pages|length }} صفحه مجاز{%
+                        else %}🔓 دسترسی کامل{% endif %}</div>
+                    {% if pos.employees.count %}
+                    <div class="pos-sc-tags">{% for ep in pos.employees.all %}<span class="pos-sc-tag">{{
+                            ep.user.get_full_name|default:ep.user.username }}</span>{% endfor %}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</section>
+
+{# ══ Unified Add/Edit Position Modal ══ #}
+<div id="pos-modal-backdrop" class="pm-backdrop" role="dialog" aria-modal="true" aria-labelledby="pm-title">
+    <div class="pm-dialog" id="pm-dialog">
+        <div class="pm-header">
+            <div class="pm-header-icon" id="pm-icon">🏷️</div>
+            <div style="flex:1;min-width:0;">
+                <h2 class="pm-title" id="pm-title">افزودن سمت جدید</h2>
+                <p class="pm-sub" id="pm-sub">اطلاعات سمت و سطح دسترسی را وارد کنید</p>
+            </div>
+            <button type="button" class="pm-close" id="pm-close" aria-label="بستن">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div class="pm-tabs">
+            <button type="button" class="pm-tab active" data-tab="info">📝 اطلاعات سمت</button>
+            <button type="button" class="pm-tab" data-tab="access">🔐 سطح دسترسی</button>
+        </div>
+        <form method="post" id="pm-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="pm-action" value="add_position">
+            <input type="hidden" name="position_id" id="pm-pos-id" value="">
+
+            <div class="pm-tab-panel active" id="tab-info">
+                <div class="pm-body">
+                    <div class="pm-field">
+                        <label class="pm-label">عنوان سمت <span class="pm-req">*</span></label>
+                        <input type="text" name="name" id="pm-name" class="pm-input" placeholder="مثلاً: مدیر فروش"
+                            required autocomplete="off">
+                    </div>
+                    <div class="pm-field">
+                        <label class="pm-label">توضیحات</label>
+                        <textarea name="description" id="pm-desc" class="pm-input pm-textarea" rows="3"
+                            placeholder="توضیح کوتاهی درباره این سمت..."></textarea>
+                    </div>
+                    <div class="pm-field">
+                        <label class="pm-label">رنگ برچسب</label>
+                        <div class="pm-color-row">
+                            <input type="color" name="color" id="pm-color" class="pm-color-input" value="#2563eb">
+                            <div class="pm-color-presets">
+                                <button type="button" class="pm-preset" style="--c:#2563eb;" data-color="#2563eb"
+                                    title="آبی"></button>
+                                <button type="button" class="pm-preset" style="--c:#7c3aed;" data-color="#7c3aed"
+                                    title="بنفش"></button>
+                                <button type="button" class="pm-preset" style="--c:#059669;" data-color="#059669"
+                                    title="سبز"></button>
+                                <button type="button" class="pm-preset" style="--c:#dc2626;" data-color="#dc2626"
+                                    title="قرمز"></button>
+                                <button type="button" class="pm-preset" style="--c:#d97706;" data-color="#d97706"
+                                    title="نارنجی"></button>
+                                <button type="button" class="pm-preset" style="--c:#0891b2;" data-color="#0891b2"
+                                    title="فیروزه‌ای"></button>
+                                <button type="button" class="pm-preset" style="--c:#be185d;" data-color="#be185d"
+                                    title="صورتی"></button>
+                                <button type="button" class="pm-preset" style="--c:#374151;" data-color="#374151"
+                                    title="خاکستری"></button>
+                            </div>
+                            <span class="pm-color-preview" id="pm-color-preview"></span>
+                        </div>
+                    </div>
+                    <div class="pm-tab-nav">
+                        <button type="button" class="btn btn-glow pm-next-btn" onclick="switchTab('access')">
+                            بعدی: سطح دسترسی
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round">
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pm-tab-panel" id="tab-access">
+                <div class="pm-body">
+                    <div class="pm-access-header">
+                        <div>
+                            <div style="font-weight:700;color:#1e3a5f;font-size:.92rem;">صفحات مجاز</div>
+                            <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;">اگر هیچ صفحه‌ای انتخاب
+                                نشود، دسترسی کامل است.</div>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="pm-sel-btn" id="pm-select-all">همه</button>
+                            <button type="button" class="pm-sel-btn" id="pm-select-none">هیچ‌کدام</button>
+                        </div>
+                    </div>
+                    <div class="pm-perm-grid" id="pm-perm-list">
+                        {% for url_name, label in page_permissions %}
+                        <label class="pm-perm-item">
+                            <input type="checkbox" name="allowed_pages" value="{{ url_name }}" class="pm-perm-cb">
+                            <span class="pm-perm-check">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="3" stroke-linecap="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </span>
+                            <span class="pm-perm-label">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    <div class="pm-tab-nav" style="justify-content:space-between;">
+                        <button type="button" class="btn btn-outline pm-back-btn" onclick="switchTab('info')">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                            بازگشت
+                        </button>
+                        <button type="submit" class="btn btn-glow" id="pm-submit-btn"
+                            style="display:flex;align-items:center;gap:7px;">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <span id="pm-submit-label">ثبت سمت</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Nav drawer toggle handled globally in base.html
+
+    var pmBackdrop = document.getElementById('pos-modal-backdrop');
+
+    function openPosModal(id, name, desc, color, allowedPages) {
+        var isEdit = !!id;
+        allowedPages = allowedPages || [];
+        document.getElementById('pm-action').value = isEdit ? 'edit_position' : 'add_position';
+        document.getElementById('pm-pos-id').value = isEdit ? id : '';
+        document.getElementById('pm-name').value = name || '';
+        document.getElementById('pm-desc').value = desc || '';
+        document.getElementById('pm-color').value = color || '#2563eb';
+        document.getElementById('pm-submit-label').textContent = isEdit ? 'ذخیره تغییرات' : 'ثبت سمت';
+        document.getElementById('pm-title').textContent = isEdit ? 'ویرایش سمت' : 'افزودن سمت جدید';
+        document.getElementById('pm-sub').textContent = isEdit ? 'اطلاعات سمت را ویرایش کنید' : 'اطلاعات سمت و سطح دسترسی را وارد کنید';
+        document.getElementById('pm-icon').textContent = isEdit ? '\u270f\ufe0f' : '\uD83C\uDFF7\uFE0F';
+        updateColorPreview(color || '#2563eb');
+        document.querySelectorAll('#pm-perm-list .pm-perm-cb').forEach(function (cb) {
+            cb.checked = allowedPages.indexOf(cb.value) !== -1;
+            cb.closest('.pm-perm-item').classList.toggle('checked', cb.checked);
+        });
+        switchTab('info');
+        pmBackdrop.classList.add('open');
+        setTimeout(function () { document.getElementById('pm-name').focus(); }, 260);
+    }
+
+    function closeModal() { pmBackdrop.classList.remove('open'); }
+    document.getElementById('pm-close').addEventListener('click', closeModal);
+    pmBackdrop.addEventListener('click', function (e) { if (e.target === pmBackdrop) closeModal(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+
+    function switchTab(name) {
+        document.querySelectorAll('.pm-tab').forEach(function (t) { t.classList.toggle('active', t.dataset.tab === name); });
+        document.querySelectorAll('.pm-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === 'tab-' + name); });
+    }
+    document.querySelectorAll('.pm-tab').forEach(function (t) {
+        t.addEventListener('click', function () { switchTab(t.dataset.tab); });
+    });
+
+    function updateColorPreview(hex) {
+        var el = document.getElementById('pm-color-preview');
+        el.style.background = hex;
+        el.style.boxShadow = '0 0 12px ' + hex + 'aa';
+        document.querySelectorAll('.pm-preset').forEach(function (b) { b.classList.toggle('active', b.dataset.color === hex); });
+    }
+    document.getElementById('pm-color').addEventListener('input', function () { updateColorPreview(this.value); });
+    document.querySelectorAll('.pm-preset').forEach(function (b) {
+        b.addEventListener('click', function () {
+            document.getElementById('pm-color').value = b.dataset.color;
+            updateColorPreview(b.dataset.color);
+        });
+    });
+
+    document.getElementById('pm-select-all').addEventListener('click', function () {
+        document.querySelectorAll('#pm-perm-list .pm-perm-cb').forEach(function (cb) {
+            cb.checked = true; cb.closest('.pm-perm-item').classList.add('checked');
+        });
+    });
+    document.getElementById('pm-select-none').addEventListener('click', function () {
+        document.querySelectorAll('#pm-perm-list .pm-perm-cb').forEach(function (cb) {
+            cb.checked = false; cb.closest('.pm-perm-item').classList.remove('checked');
+        });
+    });
+    document.querySelectorAll('#pm-perm-list .pm-perm-cb').forEach(function (cb) {
+        cb.addEventListener('change', function () { cb.closest('.pm-perm-item').classList.toggle('checked', cb.checked); });
+    });
+</script>
+
+<style>
+    .pos-sidebar-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 10px;
+        border-radius: 10px;
+        background: rgba(37, 99, 235, .04);
+        border: 1px solid rgba(37, 99, 235, .09);
+        transition: background .15s
+    }
+
+    .pos-sidebar-item:hover {
+        background: rgba(37, 99, 235, .09)
+    }
+
+    .pos-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0
+    }
+
+    .psi-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: background .15s, transform .1s;
+        flex-shrink: 0
+    }
+
+    .psi-edit {
+        background: rgba(37, 99, 235, .08);
+        color: #2563eb
+    }
+
+    .psi-edit:hover {
+        background: rgba(37, 99, 235, .18);
+        transform: scale(1.1)
+    }
+
+    .psi-del {
+        background: rgba(220, 38, 38, .07);
+        color: #dc2626
+    }
+
+    .psi-del:hover {
+        background: rgba(220, 38, 38, .16);
+        transform: scale(1.1)
+    }
+
+    .emp-avatar-img {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid rgba(37, 99, 235, .2)
+    }
+
+    .emp-avatar-letter {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #2563eb, #7c3aed);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 700;
+        font-size: .85rem;
+        flex-shrink: 0
+    }
+
+    .pos-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: .78rem;
+        font-weight: 600;
+        background: color-mix(in srgb, var(--pc) 18%, transparent);
+        color: var(--pc);
+        border: 1px solid color-mix(in srgb, var(--pc) 35%, transparent)
+    }
+
+    .pos-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 16px
+    }
+
+    .pos-summary-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px 22px;
+        border-top: 4px solid var(--pc);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, .06);
+        cursor: pointer;
+        transition: transform .2s, box-shadow .2s
+    }
+
+    .pos-summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 28px rgba(0, 0, 0, .12)
+    }
+
+    .pos-sc-top {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px
+    }
+
+    .pos-sc-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--pc);
+        flex-shrink: 0
+    }
+
+    .pos-sc-top strong {
+        flex: 1;
+        font-size: .9rem;
+        color: #1e3a5f
+    }
+
+    .pos-sc-edit-hint {
+        font-size: .75rem;
+        opacity: 0;
+        transition: opacity .2s
+    }
+
+    .pos-summary-card:hover .pos-sc-edit-hint {
+        opacity: 1
+    }
+
+    .pos-sc-desc {
+        font-size: .76rem;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        line-height: 1.5
+    }
+
+    .pos-sc-count {
+        font-size: 1.7rem;
+        font-weight: 800;
+        color: var(--pc)
+    }
+
+    .pos-sc-label {
+        font-size: .76rem;
+        color: var(--text-muted);
+        margin-bottom: 8px
+    }
+
+    .pos-sc-access {
+        font-size: .74rem;
+        padding: 3px 10px;
+        background: rgba(0, 0, 0, .04);
+        border-radius: 999px;
+        display: inline-block;
+        margin-bottom: 10px
+    }
+
+    .pos-sc-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px
+    }
+
+    .pos-sc-tag {
+        font-size: .72rem;
+        background: color-mix(in srgb, var(--pc) 12%, transparent);
+        color: var(--pc);
+        border-radius: 999px;
+        padding: 2px 8px
+    }
+
+    .data-table thead th {
+        background: rgba(37, 99, 235, .06);
+        font-size: .82rem;
+        font-weight: 700;
+        color: #1e3a5f;
+        border-bottom: 2px solid rgba(37, 99, 235, .1);
+        text-align: right;
+        padding: 10px 14px
+    }
+
+    .data-table tbody tr {
+        border-bottom: 1px solid rgba(37, 99, 235, .06);
+        transition: background .15s
+    }
+
+    .data-table tbody tr:hover {
+        background: rgba(37, 99, 235, .03)
+    }
+
+    .pm-backdrop {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        inset: 0;
+        z-index: 1100;
+        background: rgba(15, 23, 42, .55);
+        backdrop-filter: blur(6px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s;
+        padding: 16px
+    }
+
+    .pm-backdrop.open {
+        opacity: 1;
+        pointer-events: all
+    }
+
+    .pm-backdrop.open .pm-dialog {
+        transform: translateY(0) scale(1);
+        opacity: 1
+    }
+
+    .pm-dialog {
+        width: min(520px, 100%);
+        max-height: 90vh;
+        overflow: hidden;
+        background: #fff;
+        border-radius: 22px;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, .22), 0 0 0 1px rgba(37, 99, 235, .08);
+        transform: translateY(30px) scale(.96);
+        opacity: 0;
+        transition: transform .32s cubic-bezier(.34, 1.3, .64, 1), opacity .25s;
+        display: flex;
+        flex-direction: column
+    }
+
+    .pm-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 22px 24px 16px;
+        border-bottom: 1px solid rgba(37, 99, 235, .08);
+        flex-shrink: 0
+    }
+
+    .pm-header-icon {
+        font-size: 1.7rem;
+        line-height: 1;
+        flex-shrink: 0
+    }
+
+    .pm-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #1e3a5f;
+        margin: 0
+    }
+
+    .pm-sub {
+        font-size: .78rem;
+        color: var(--text-muted);
+        margin: 2px 0 0
+    }
+
+    .pm-close {
+        margin-right: auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        border: none;
+        background: rgba(37, 99, 235, .06);
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background .15s, color .15s;
+        flex-shrink: 0
+    }
+
+    .pm-close:hover {
+        background: rgba(220, 38, 38, .1);
+        color: #dc2626
+    }
+
+    .pm-tabs {
+        display: flex;
+        gap: 4px;
+        padding: 14px 24px 0;
+        border-bottom: 1px solid rgba(37, 99, 235, .08);
+        flex-shrink: 0
+    }
+
+    .pm-tab {
+        padding: 8px 18px;
+        border-radius: 10px 10px 0 0;
+        border: none;
+        background: transparent;
+        font-size: .83rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: background .15s, color .15s;
+        border-bottom: 2px solid transparent
+    }
+
+    .pm-tab.active {
+        color: #2563eb;
+        background: rgba(37, 99, 235, .06);
+        border-bottom-color: #2563eb
+    }
+
+    .pm-tab:hover:not(.active) {
+        background: rgba(37, 99, 235, .04)
+    }
+
+    .pm-tab-panel {
+        display: none;
+        overflow-y: auto
+    }
+
+    .pm-tab-panel.active {
+        display: block
+    }
+
+    .pm-body {
+        padding: 22px 24px;
+        display: grid;
+        gap: 16px
+    }
+
+    .pm-field {
+        display: grid;
+        gap: 6px
+    }
+
+    .pm-label {
+        font-size: .83rem;
+        font-weight: 600;
+        color: #374151
+    }
+
+    .pm-req {
+        color: #e53e3e
+    }
+
+    .pm-input {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1.5px solid rgba(37, 99, 235, .15);
+        background: #f8faff;
+        font-size: .88rem;
+        color: #1e3a5f;
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+        font-family: inherit;
+        box-sizing: border-box
+    }
+
+    .pm-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+        background: #fff
+    }
+
+    .pm-textarea {
+        resize: vertical;
+        min-height: 72px
+    }
+
+    .pm-color-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap
+    }
+
+    .pm-color-input {
+        width: 44px;
+        height: 40px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        padding: 2px;
+        background: none
+    }
+
+    .pm-color-presets {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap
+    }
+
+    .pm-preset {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        background: var(--c);
+        cursor: pointer;
+        transition: transform .15s, box-shadow .15s;
+        padding: 0
+    }
+
+    .pm-preset:hover {
+        transform: scale(1.2)
+    }
+
+    .pm-preset.active {
+        border-color: #fff;
+        box-shadow: 0 0 0 3px var(--c)
+    }
+
+    .pm-color-preview {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        transition: background .2s, box-shadow .3s;
+        flex-shrink: 0
+    }
+
+    .pm-access-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px
+    }
+
+    .pm-sel-btn {
+        padding: 4px 12px;
+        border-radius: 8px;
+        border: 1.5px solid rgba(37, 99, 235, .2);
+        background: transparent;
+        font-size: .75rem;
+        font-weight: 600;
+        color: #2563eb;
+        cursor: pointer;
+        transition: background .15s
+    }
+
+    .pm-sel-btn:hover {
+        background: rgba(37, 99, 235, .08)
+    }
+
+    .pm-perm-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px
+    }
+
+    .pm-perm-item {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        border: 1.5px solid rgba(37, 99, 235, .1);
+        background: rgba(37, 99, 235, .03);
+        transition: background .15s, border-color .15s;
+        -webkit-user-select: none;
+        user-select: none
+    }
+
+    .pm-perm-item:hover {
+        background: rgba(37, 99, 235, .07)
+    }
+
+    .pm-perm-item.checked {
+        background: rgba(37, 99, 235, .1);
+        border-color: rgba(37, 99, 235, .35)
+    }
+
+    .pm-perm-item input {
+        display: none
+    }
+
+    .pm-perm-check {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        border: 2px solid rgba(37, 99, 235, .25);
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background .15s, border-color .15s;
+        flex-shrink: 0;
+        color: transparent
+    }
+
+    .pm-perm-item.checked .pm-perm-check {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: #fff
+    }
+
+    .pm-perm-label {
+        font-size: .82rem;
+        font-weight: 500;
+        color: #374151
+    }
+
+    .pm-perm-item.checked .pm-perm-label {
+        color: #1e3a5f;
+        font-weight: 600
+    }
+
+    .pm-tab-nav {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 4px
+    }
+
+    .pm-next-btn,
+    .pm-back-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px
+    }
+
+    .pm-next-btn {
+        flex-direction: row-reverse
+    }
+</style>
+{% endblock %}

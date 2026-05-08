@@ -1,0 +1,849 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}ترددها{% endblock %}
+
+{% block content %}
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-glow">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity" style="margin-bottom:8px;">
+                {% if profile_obj.avatar %}
+                <img src="{{ profile_obj.avatar.url }}" alt="آواتار"
+                    style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#0578ff);flex-shrink:0;">
+                {% else %}
+                <span class="profile-avatar">{{ request.user.get_full_name|default:request.user.username|slice:':1'
+                    }}</span>
+                {% endif %}
+                <div>
+                    <h2 class="side-profile-title">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                    <p class="side-profile-sub">{{ profile_obj.job_title|default:'@'|add:request.user.username }}</p>
+                </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+                <span class="chip">{{ month_label }}</span>
+                <span class="chip">{{ profile_obj.hire_date|jalali_date }}</span>
+            </div>
+            <div class="side-metric-list" style="gap:6px;">
+                <div class="side-metric-row">
+                    <span>هدف روزانه</span>
+                    <strong>{{ daily_target_hours_text }} ساعت</strong>
+                </div>
+                <div class="side-metric-row">
+                    <span>کارکرد این ماه</span>
+                    <strong>{{ monthly_total_hours_text }} ساعت</strong>
+                </div>
+                <div class="side-metric-row">
+                    <span>تعداد ترددها</span>
+                    <strong>{{ total_sessions_count }}</strong>
+                </div>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+        <section class="glass-card reveal in-view page-intro">
+            <div class="card-head split-head">
+                <div>
+                    <p class="kicker">Monthly Attendance Board</p>
+                    <h1>ترددهای ماه</h1>
+                    <p>هر کارت یک روز از ماه است؛ داخل هر کارت ساعت‌های ثبت‌شده، کارکرد و مانده دیده می‌شود.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="stat-grid attendance-stat-grid">
+            <article class="stat-card reveal in-view" style="--delay:.04s;">
+                <span>مجموع این ماه</span>
+                <strong>{{ monthly_total_hours_text }} ساعت</strong>
+                <small>{{ month_label }}</small>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.08s;">
+                <span>تعداد ترددها</span>
+                <strong>{{ total_sessions_count }}</strong>
+                <small>{{ closed_sessions_count }} بسته | {{ active_sessions_count }} فعال</small>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.12s;">
+                <span>بیشترین کارکرد روز</span>
+                <strong>{{ max_day_hours_text }} ساعت</strong>
+                <small>بالاترین رکورد روزانه</small>
+            </article>
+        </section>
+
+        <section class="glass-card reveal in-view attendance-days-shell">
+            <nav class="month-nav-bar">
+                <a class="month-nav-btn" href="?month={{ prev_month_key }}">
+                    <span class="month-nav-arrow">&#8249;</span>
+                    <span class="month-nav-lbl">{{ prev_month_label }}</span>
+                </a>
+                <div class="month-nav-center">
+                    <span class="month-nav-title">{{ month_label }}</span>
+                    <span class="month-nav-sub">{{ month_days_count }} روز | {{ total_sessions_count }} تردد</span>
+                </div>
+                {% if next_month_disabled %}
+                <span class="month-nav-btn disabled">
+                    <span class="month-nav-lbl">{{ next_month_label }}</span>
+                    <span class="month-nav-arrow">&#8250;</span>
+                </span>
+                {% else %}
+                <a class="month-nav-btn" href="?month={{ next_month_key }}">
+                    <span class="month-nav-lbl">{{ next_month_label }}</span>
+                    <span class="month-nav-arrow">&#8250;</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <div class="attendance-days-grid">
+                {% for day in month_days %}
+                <article
+                    class="attendance-day-card {% if day.is_today %}today{% endif %} {% if day.is_selected %}selected{% endif %}">
+                    <div class="attendance-day-head">
+                        <div>
+                            <span class="attendance-day-no">روز {{ day.jalali_day }}</span>
+                            <h3>{{ day.date|jalali_date }}</h3>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            {% if day.is_leave %}
+                            <span class="pill pending attendance-leave-badge">مرخصی</span>
+                            {% endif %}
+                            {% if is_current_month %}
+                            <button type="button" class="btn btn-glow btn-xs attendance-add-trigger"
+                                data-date="{{ day.date|jalali_date }}" data-day-iso="{{ day.day_iso }}"
+                                title="افزودن تردد جدید برای این روز">+</button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="attendance-day-meta">
+                        <div class="attendance-meta-item success-tone">
+                            <span>کارکرد</span>
+                            <strong>{{ day.hours_text }} ساعت</strong>
+                        </div>
+                        {% if day.overtime_minutes %}
+                        <div class="attendance-meta-item warning-tone">
+                            <span>اضافه‌کار</span>
+                            <strong>{{ day.overtime_hours_text }} ساعت</strong>
+                        </div>
+                        {% else %}
+                        <div class="attendance-meta-item neutral-tone">
+                            <span>مانده</span>
+                            <strong>{{ day.remaining_hours_text }} ساعت</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="meter attendance-day-meter">
+                        <div class="meter-fill" style="width: {{ day.progress_percent }}%;"></div>
+                    </div>
+
+                    <div class="attendance-day-caption">
+                        <span>شروع: {{ day.first_start_text }}</span>
+                        <span>پایان: {{ day.last_end_text }}</span>
+                    </div>
+
+                    <div class="attendance-session-list">
+                        {% for session in day.sessions %}
+                        <div class="attendance-session-item {% if not session.end_time %}is-active{% endif %}">
+                            <div class="attendance-session-content">
+                                <strong>
+                                    {{ session.start_time|time:'H:i' }}
+                                    تا
+                                    {% if session.end_time %}{{ session.end_time|time:'H:i' }}{% else %}فعال{% endif %}
+                                </strong>
+                                <small>
+                                    {% if session.end_time %}
+                                    {{ session.duration_minutes|minutes_to_hours }} ساعت
+                                    {% else %}
+                                    هنوز باز است
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% if session.end_time %}
+                            {% if is_current_month %}
+                            <div class="attendance-session-actions">
+                                <button type="button" class="attendance-action-btn edit attendance-edit-trigger"
+                                    data-id="{{ session.id }}" data-date="{{ day.date|jalali_date }}"
+                                    data-start="{{ session.start_time|time:'H:i' }}"
+                                    data-end="{{ session.end_time|time:'H:i' }}"
+                                    data-note="{{ session.note|default:'' }}"
+                                    data-is-leave="{% if day.is_leave %}true{% else %}false{% endif %}"
+                                    data-start-full="{{ session.start_time|jalali_datetime }}"
+                                    data-end-full="{{ session.end_time|jalali_datetime }}" title="ویرایش تردد"
+                                    aria-label="ویرایش تردد">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M12 20h9" />
+                                        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                    </svg>
+                                </button>
+                                <form method="post" class="inline-delete-form attendance-delete-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_attendance">
+                                    <input type="hidden" name="month" value="{{ selected_month_key }}">
+                                    <input type="hidden" name="session_id" value="{{ session.id }}">
+                                    <button type="submit" class="attendance-action-btn delete" title="حذف تردد"
+                                        aria-label="حذف تردد">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round">
+                                            <polyline points="3 6 5 6 21 6" />
+                                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                            <line x1="10" y1="11" x2="10" y2="17" />
+                                            <line x1="14" y1="11" x2="14" y2="17" />
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}{# is_current_month #}
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <div class="attendance-empty-state">برای این روز ترددی ثبت نشده است.</div>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+    </div>
+</section>
+
+<div class="modal-backdrop" id="attendance-edit-modal">
+    <section class="modal-dialog atp-dialog" role="dialog" aria-modal="true" aria-labelledby="attendance-edit-title">
+        <div class="atp-mhead">
+            <div class="atp-mhead-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12,6 12,12 16,14" />
+                </svg>
+            </div>
+            <div class="atp-mhead-text">
+                <h2 id="attendance-edit-title">ویرایش تردد</h2>
+                <span class="atp-mhead-sub" id="edit-date-sub">—</span>
+            </div>
+            <button type="button" class="atp-close-btn" id="attendance-edit-close" aria-label="بستن">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <div id="edit-leave-warning" class="atp-leave-warn" style="display:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            این روز مرخصی است
+        </div>
+        <form method="post" id="attendance-edit-form" class="atp-form" data-month-start="{{ jalali_month_start }}"
+            data-month-end="{{ jalali_month_end }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_attendance">
+            <input type="hidden" name="month" value="{{ selected_month_key }}">
+            <input type="hidden" name="session_id" id="edit-session-id">
+            <input type="hidden" name="work_date" id="edit-work-date">
+            <input type="hidden" name="start_time" id="edit-start-time">
+            <input type="hidden" name="end_time" id="edit-end-time">
+
+            <div class="atp-time-tabs" id="atp-edit-tabs">
+                <button type="button" class="atp-ttab active" data-which="start">
+                    <span class="atp-ttab-lbl">شروع</span>
+                    <span class="atp-ttab-val" id="atp-edit-sval">--:--</span>
+                </button>
+                <div class="atp-ttab-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12,5 19,12 12,19" />
+                    </svg>
+                </div>
+                <button type="button" class="atp-ttab" data-which="end">
+                    <span class="atp-ttab-lbl">پایان</span>
+                    <span class="atp-ttab-val" id="atp-edit-eval">--:--</span>
+                </button>
+            </div>
+
+            <div class="atp-picker-zone" id="atp-edit-zone">
+                <div class="atp-clock-col">
+                    <div class="atp-mode-pills">
+                        <button type="button" class="atp-mpill active" data-mode="h">ساعت</button>
+                        <button type="button" class="atp-mpill" data-mode="m">دقیقه</button>
+                    </div>
+                    <canvas class="atp-canvas" width="190" height="190"></canvas>
+                </div>
+                <div class="atp-scroll-col">
+                    <div class="atp-drum-box">
+                        <span class="atp-drum-lbl">ساعت</span>
+                        <div class="atp-drum" data-unit="h"></div>
+                    </div>
+                    <div class="atp-drum-colon">:</div>
+                    <div class="atp-drum-box">
+                        <span class="atp-drum-lbl">دقیقه</span>
+                        <div class="atp-drum" data-unit="m"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="atp-manual-bar">
+                <span class="atp-manual-hint">⌨ مستقیم بنویس:</span>
+                <input class="atp-manual" type="text" placeholder="13:08" maxlength="5" dir="ltr" inputmode="numeric"
+                    autocomplete="off">
+            </div>
+
+            <div class="atp-note-row">
+                <label for="edit-note">توضیحات</label>
+                <input id="edit-note" name="note" class="f-input" type="text" placeholder="اختیاری ...">
+            </div>
+
+            <small id="edit-form-error" class="form-error" style="display:none;"></small>
+            <button type="submit" class="btn btn-glow atp-save-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <polyline points="20,6 9,17 4,12" />
+                </svg>
+                ذخیره تغییرات
+            </button>
+        </form>
+    </section>
+</div>
+
+<div class="modal-backdrop" id="attendance-add-modal">
+    <section class="modal-dialog atp-dialog" role="dialog" aria-modal="true" aria-labelledby="attendance-add-title">
+        <div class="atp-mhead atp-mhead--add">
+            <div class="atp-mhead-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+            </div>
+            <div class="atp-mhead-text">
+                <h2 id="attendance-add-title">افزودن تردد جدید</h2>
+                <span class="atp-mhead-sub" id="add-date-sub">—</span>
+            </div>
+            <button type="button" class="atp-close-btn" id="attendance-add-close" aria-label="بستن">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <form method="post" id="attendance-add-form" class="atp-form" data-month-start="{{ jalali_month_start }}"
+            data-month-end="{{ jalali_month_end }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_attendance">
+            <input type="hidden" name="month" value="{{ selected_month_key }}">
+            <input type="hidden" name="start_time" id="add-start-time">
+            <input type="hidden" name="end_time" id="add-end-time">
+
+            <input type="hidden" id="add-work-date" name="work_date">
+
+            <div class="atp-time-tabs" id="atp-add-tabs">
+                <button type="button" class="atp-ttab active" data-which="start">
+                    <span class="atp-ttab-lbl">شروع</span>
+                    <span class="atp-ttab-val" id="atp-add-sval">--:--</span>
+                </button>
+                <div class="atp-ttab-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12,5 19,12 12,19" />
+                    </svg>
+                </div>
+                <button type="button" class="atp-ttab" data-which="end">
+                    <span class="atp-ttab-lbl">پایان</span>
+                    <span class="atp-ttab-val" id="atp-add-eval">--:--</span>
+                </button>
+            </div>
+
+            <div class="atp-picker-zone" id="atp-add-zone">
+                <div class="atp-clock-col">
+                    <div class="atp-mode-pills">
+                        <button type="button" class="atp-mpill active" data-mode="h">ساعت</button>
+                        <button type="button" class="atp-mpill" data-mode="m">دقیقه</button>
+                    </div>
+                    <canvas class="atp-canvas" width="190" height="190"></canvas>
+                </div>
+                <div class="atp-scroll-col">
+                    <div class="atp-drum-box">
+                        <span class="atp-drum-lbl">ساعت</span>
+                        <div class="atp-drum" data-unit="h"></div>
+                    </div>
+                    <div class="atp-drum-colon">:</div>
+                    <div class="atp-drum-box">
+                        <span class="atp-drum-lbl">دقیقه</span>
+                        <div class="atp-drum" data-unit="m"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="atp-manual-bar">
+                <span class="atp-manual-hint">⌨ مستقیم بنویس:</span>
+                <input class="atp-manual" type="text" placeholder="08:30" maxlength="5" dir="ltr" inputmode="numeric"
+                    autocomplete="off">
+            </div>
+
+            <div class="atp-note-row">
+                <label for="add-note">توضیحات</label>
+                <input id="add-note" name="note" class="f-input" type="text" placeholder="اختیاری ...">
+            </div>
+
+            <small id="add-form-error" class="form-error" style="display:none;"></small>
+            <button type="submit" class="btn btn-glow atp-save-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                ثبت تردد
+            </button>
+        </form>
+    </section>
+</div>
+
+<script>
+    (function () {
+        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var MODAL_CLOSE_MS = prefersReducedMotion ? 0 : 360;
+
+        function faToEn(str) {
+            return String(str || '').replace(/[۰-۹]/g, function (d) {
+                return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+            }).replace(/[٠-٩]/g, function (d) {
+                return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+            });
+        }
+
+        function parseJalaliInput(value) {
+            const normalized = faToEn(value).trim().replace(/[-\.]/g, '/');
+            const matched = normalized.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+            if (!matched) return null;
+            return { jy: +matched[1], jm: +matched[2], jd: +matched[3] };
+        }
+
+        function jalaliCompare(a, b) {
+            if (a.jy !== b.jy) return a.jy < b.jy ? -1 : 1;
+            if (a.jm !== b.jm) return a.jm < b.jm ? -1 : 1;
+            if (a.jd !== b.jd) return a.jd < b.jd ? -1 : 1;
+            return 0;
+        }
+
+        function parseClock(value) {
+            const normalized = faToEn(value);
+            const matched = normalized.match(/^(\d{1,2}):(\d{1,2})$/);
+            if (!matched) return null;
+            const hour = Number(matched[1]);
+            const minute = Number(matched[2]);
+            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+            return (hour * 60) + minute;
+        }
+
+        function makeModalController(modalEl) {
+            let closeTimer = null;
+            return {
+                open: function () {
+                    if (!modalEl) return;
+                    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+                    modalEl.classList.remove('closing');
+                    if (!prefersReducedMotion) {
+                        modalEl.classList.remove('opening');
+                        void modalEl.offsetWidth;
+                        modalEl.classList.add('opening');
+                    }
+                    modalEl.classList.add('open');
+                    document.body.style.overflow = 'hidden';
+                },
+                close: function () {
+                    if (!modalEl || !modalEl.classList.contains('open')) return;
+                    modalEl.classList.remove('opening');
+                    modalEl.classList.add('closing');
+                    if (closeTimer) clearTimeout(closeTimer);
+                    closeTimer = setTimeout(function () {
+                        modalEl.classList.remove('open', 'closing');
+                        document.body.style.overflow = '';
+                        closeTimer = null;
+                    }, MODAL_CLOSE_MS);
+                }
+            };
+        }
+
+        function parseClock2(value) {
+            var n = faToEn(value || '');
+            var m = n.match(/^(\d{1,2}):(\d{1,2})$/);
+            if (!m) return null;
+            var h = +m[1], min = +m[2];
+            if (h > 23 || min > 59) return null;
+            return { h: h, m: min };
+        }
+
+        /* ── CLOCK PICKER ── */
+        (function () {
+            var TAU = Math.PI * 2;
+            function pad(n) { return String(n).padStart(2, '0'); }
+            function parseTimeStr(s) {
+                var raw = faToEn(s || '').trim();
+                var m = raw.match(/^(\d{1,2}):?(\d{2})$/) || raw.match(/^(\d{1,2}):(\d{1,2})$/);
+                if (!m) return null;
+                var h = +m[1], min = +m[2];
+                if (h > 23 || min > 59) return null;
+                return { h: h, m: min };
+            }
+            function drawClock(canvas, h24, m, mode) {
+                var ctx = canvas.getContext('2d');
+                var W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2;
+                var R = Math.min(W, H) / 2 - 6;
+                ctx.clearRect(0, 0, W, H);
+                /* face */
+                var g = ctx.createRadialGradient(cx, cy - R * 0.3, R * 0.1, cx, cy, R);
+                g.addColorStop(0, '#f0f7ff'); g.addColorStop(1, '#dceeff');
+                ctx.save(); ctx.shadowColor = 'rgba(5,120,255,.15)'; ctx.shadowBlur = 18;
+                ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.restore();
+                ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.strokeStyle = 'rgba(5,120,255,.2)'; ctx.lineWidth = 1.5; ctx.stroke();
+                /* ticks */
+                for (var t = 0; t < 60; t++) {
+                    var ta = t / 60 * TAU - Math.PI / 2, maj = t % 5 === 0;
+                    ctx.beginPath();
+                    ctx.moveTo(cx + Math.cos(ta) * (R - (maj ? 9 : 5)), cy + Math.sin(ta) * (R - (maj ? 9 : 5)));
+                    ctx.lineTo(cx + Math.cos(ta) * R, cy + Math.sin(ta) * R);
+                    ctx.strokeStyle = maj ? 'rgba(5,120,255,.38)' : 'rgba(5,120,255,.12)';
+                    ctx.lineWidth = maj ? 1.5 : 1; ctx.stroke();
+                }
+                /* numbers */
+                var h12 = h24 % 12;
+                for (var i = 0; i < 12; i++) {
+                    var ang = i / 12 * TAU - Math.PI / 2;
+                    var tx = cx + Math.cos(ang) * (R - 21), ty = cy + Math.sin(ang) * (R - 21);
+                    var lbl = mode === 'h' ? (i === 0 ? '12' : String(i)) : pad(i * 5);
+                    var act = mode === 'h' ? (i === 0 ? h12 === 0 : h12 === i) : (i === 0 ? m === 0 : Math.round(m / 5) * 5 % 60 === i * 5);
+                    if (act) {
+                        ctx.save(); ctx.shadowColor = 'rgba(5,120,255,.5)'; ctx.shadowBlur = 10;
+                        ctx.beginPath(); ctx.arc(tx, ty, 14, 0, TAU); ctx.fillStyle = '#0578ff'; ctx.fill(); ctx.restore();
+                        ctx.fillStyle = '#fff';
+                    } else { ctx.fillStyle = '#3a4f7a'; }
+                    ctx.font = (act ? '700' : '500') + ' ' + Math.round(R * 0.195) + 'px Vazirmatn,system-ui,sans-serif';
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(lbl, tx, ty);
+                }
+                /* hands */
+                var hA = ((h24 % 12) / 12 + m / 720) * TAU - Math.PI / 2;
+                var mA = m / 60 * TAU - Math.PI / 2;
+                function hand(angle, len, color, lw) {
+                    ctx.save(); ctx.shadowColor = 'rgba(5,120,255,.25)'; ctx.shadowBlur = 4;
+                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(angle) * len, cy + Math.sin(angle) * len);
+                    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+                }
+                hand(hA, R - 44, mode === 'h' ? '#0578ff' : 'rgba(5,120,255,.28)', 4);
+                hand(mA, R - 30, mode === 'm' ? '#0578ff' : 'rgba(5,120,255,.28)', 2.5);
+                ctx.save(); ctx.shadowColor = 'rgba(5,120,255,.5)'; ctx.shadowBlur = 8;
+                ctx.beginPath(); ctx.arc(cx, cy, 5.5, 0, TAU); ctx.fillStyle = '#0578ff'; ctx.fill(); ctx.restore();
+            }
+
+            function angleFrom(canvas, e) {
+                var r = canvas.getBoundingClientRect(), s = e.touches ? e.touches[0] : e;
+                return Math.atan2((s.clientY - r.top) / r.height * canvas.height - canvas.height / 2,
+                    (s.clientX - r.left) / r.width * canvas.width - canvas.width / 2);
+            }
+
+            function buildDrum(drum, count, cur, step) {
+                drum.innerHTML = '';
+                for (var i = 0; i < count; i += step) {
+                    var d = document.createElement('div');
+                    d.className = 'atp-di' + (i === cur ? ' active' : '');
+                    d.dataset.val = i; d.textContent = pad(i);
+                    drum.appendChild(d);
+                }
+            }
+
+            function drumScroll(drum, smooth) {
+                var a = drum.querySelector('.atp-di.active');
+                if (a) {
+                    var top = a.offsetTop - drum.clientHeight / 2 + a.clientHeight / 2;
+                    if (smooth) drum.scrollTo({ top: top, behavior: 'smooth' }); else drum.scrollTop = top;
+                }
+            }
+
+            function initATPicker(opts) {
+                var zone = opts.zone;
+                var canvas = zone.querySelector('.atp-canvas');
+                var hDrum = zone.querySelector('[data-unit="h"]');
+                var mDrum = zone.querySelector('[data-unit="m"]');
+                var tabs = opts.tabsEl.querySelectorAll('.atp-ttab');
+                var pills = zone.querySelectorAll('.atp-mpill');
+                var st = { active: 'start', start: { h: 8, m: 0 }, end: { h: 17, m: 0 }, mode: 'h', drag: false };
+
+                function cur() { return st.active === 'start' ? st.start : st.end; }
+
+                function render(smooth) {
+                    var v = cur();
+                    opts.startHidden.value = pad(st.start.h) + ':' + pad(st.start.m);
+                    opts.endHidden.value = pad(st.end.h) + ':' + pad(st.end.m);
+                    opts.sValEl.textContent = pad(st.start.h) + ':' + pad(st.start.m);
+                    opts.eValEl.textContent = pad(st.end.h) + ':' + pad(st.end.m);
+                    if (document.activeElement !== opts.manualEl) opts.manualEl.value = pad(v.h) + ':' + pad(v.m);
+                    pills.forEach(function (p) { p.classList.toggle('active', p.dataset.mode === st.mode); });
+                    drawClock(canvas, v.h, v.m, st.mode);
+                    hDrum.querySelectorAll('.atp-di').forEach(function (d) { d.classList.toggle('active', +d.dataset.val === v.h); });
+                    mDrum.querySelectorAll('.atp-di').forEach(function (d) { d.classList.toggle('active', +d.dataset.val === v.m); });
+                    drumScroll(hDrum, smooth); drumScroll(mDrum, smooth);
+                }
+
+                function load(sh, sm, eh, em) {
+                    st.start = { h: sh, m: sm }; st.end = { h: eh, m: em };
+                    st.active = 'start'; st.mode = 'h';
+                    tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.which === 'start'); });
+                    buildDrum(hDrum, 24, st.start.h, 1);
+                    buildDrum(mDrum, 60, st.start.m, 1);
+                    requestAnimationFrame(function () { render(false); });
+                }
+
+                tabs.forEach(function (tab) {
+                    tab.addEventListener('click', function () {
+                        st.active = tab.dataset.which; st.mode = 'h';
+                        tabs.forEach(function (t) { t.classList.toggle('active', t === tab); });
+                        var v = cur();
+                        buildDrum(hDrum, 24, v.h, 1); buildDrum(mDrum, 60, v.m, 1);
+                        requestAnimationFrame(function () { render(false); });
+                    });
+                });
+
+                pills.forEach(function (pill) {
+                    pill.addEventListener('click', function () { st.mode = pill.dataset.mode; render(true); });
+                });
+
+                function onCanvas(e) {
+                    e.preventDefault();
+                    var angle = angleFrom(canvas, e), v = cur();
+                    if (st.mode === 'h') {
+                        var h12 = (((Math.round((angle + Math.PI / 2) / (TAU / 12)) % 12) + 12) % 12);
+                        v.h = v.h >= 12 ? h12 + 12 : h12;
+                        if (v.h === 24) v.h = 0;
+                        st.mode = 'm';
+                    } else {
+                        v.m = ((Math.round(raw) % 60) + 60) % 60;
+                    }
+                    buildDrum(hDrum, 24, v.h, 1); buildDrum(mDrum, 60, v.m, 1);
+                    render(true);
+                }
+
+                canvas.addEventListener('click', onCanvas);
+                canvas.addEventListener('mousedown', function (e) { st.drag = true; onCanvas(e); });
+                canvas.addEventListener('mousemove', function (e) { if (st.drag) onCanvas(e); });
+                window.addEventListener('mouseup', function () { st.drag = false; });
+                canvas.addEventListener('touchstart', function (e) { st.drag = true; onCanvas(e); }, { passive: false });
+                canvas.addEventListener('touchmove', function (e) { if (st.drag) onCanvas(e); }, { passive: false });
+                canvas.addEventListener('touchend', function () { st.drag = false; });
+
+                [hDrum, mDrum].forEach(function (drum) {
+                    var scrollRaf = null;
+                    drum.addEventListener('scroll', function () {
+                        if (scrollRaf) cancelAnimationFrame(scrollRaf);
+                        scrollRaf = requestAnimationFrame(function () {
+                            scrollRaf = null;
+                            var center = drum.scrollTop + drum.clientHeight / 2;
+                            var best = null, bestDist = Infinity;
+                            drum.querySelectorAll('.atp-di').forEach(function (d) {
+                                var mid = d.offsetTop + d.clientHeight / 2;
+                                var dist = Math.abs(mid - center);
+                                if (dist < bestDist) { bestDist = dist; best = d; }
+                            });
+                            if (!best) return;
+                            var val = +best.dataset.val, v = cur();
+                            if (drum.dataset.unit === 'h') v.h = val; else v.m = val;
+                            drum.querySelectorAll('.atp-di').forEach(function (d) {
+                                d.classList.toggle('active', +d.dataset.val === val);
+                            });
+                            function pad2(n) { return String(n).padStart(2, '0'); }
+                            opts.startHidden.value = pad2(st.start.h) + ':' + pad2(st.start.m);
+                            opts.endHidden.value = pad2(st.end.h) + ':' + pad2(st.end.m);
+                            opts.sValEl.textContent = pad2(st.start.h) + ':' + pad2(st.start.m);
+                            opts.eValEl.textContent = pad2(st.end.h) + ':' + pad2(st.end.m);
+                            if (document.activeElement !== opts.manualEl)
+                                opts.manualEl.value = pad2(v.h) + ':' + pad2(v.m);
+                            drawClock(canvas, st[st.active].h, st[st.active].m, st.mode);
+                        });
+                    });
+                    drum.addEventListener('click', function (e) {
+                        var item = e.target.closest('.atp-di'); if (!item) return;
+                        var val = +item.dataset.val, v = cur();
+                        if (drum.dataset.unit === 'h') v.h = val; else v.m = val;
+                        buildDrum(hDrum, 24, v.h, 1); buildDrum(mDrum, 60, v.m, 1);
+                        render(true);
+                    });
+                });
+
+                opts.manualEl.addEventListener('input', function () {
+                    var p = parseTimeStr(opts.manualEl.value);
+                    if (p) {
+                        var v = cur(); v.h = p.h; v.m = p.m;
+                        buildDrum(hDrum, 24, v.h, 1); buildDrum(mDrum, 60, v.m, 1); render(true);
+                    }
+                });
+                opts.manualEl.addEventListener('click', function (e) { e.stopPropagation(); });
+
+                var picker = { load: load };
+                if (opts.startHidden.id === 'edit-start-time') window._atpEdit = picker;
+                else window._atpAdd = picker;
+                return picker;
+            }
+
+            /* initialise both pickers */
+            var _editPicker = initATPicker({
+                zone: document.getElementById('atp-edit-zone'),
+                tabsEl: document.getElementById('atp-edit-tabs'),
+                startHidden: document.getElementById('edit-start-time'),
+                endHidden: document.getElementById('edit-end-time'),
+                sValEl: document.getElementById('atp-edit-sval'),
+                eValEl: document.getElementById('atp-edit-eval'),
+                manualEl: document.querySelector('#attendance-edit-form .atp-manual')
+            });
+
+            var _addPicker = initATPicker({
+                zone: document.getElementById('atp-add-zone'),
+                tabsEl: document.getElementById('atp-add-tabs'),
+                startHidden: document.getElementById('add-start-time'),
+                endHidden: document.getElementById('add-end-time'),
+                sValEl: document.getElementById('atp-add-sval'),
+                eValEl: document.getElementById('atp-add-eval'),
+                manualEl: document.querySelector('#attendance-add-form .atp-manual')
+            });
+        })();
+
+        /* ── EDIT modal ── */
+        (function () {
+            var modal = document.getElementById('attendance-edit-modal');
+            var ctrl = makeModalController(modal);
+            var form = document.getElementById('attendance-edit-form');
+            var errorEl = document.getElementById('edit-form-error');
+            var idInput = document.getElementById('edit-session-id');
+            var dateInput = document.getElementById('edit-work-date');
+            var noteInput = document.getElementById('edit-note');
+            var leaveWarning = document.getElementById('edit-leave-warning');
+            var dateSub = document.getElementById('edit-date-sub');
+            var startHidden = document.getElementById('edit-start-time');
+            var endHidden = document.getElementById('edit-end-time');
+
+            document.querySelectorAll('.attendance-edit-trigger').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var isLeave = btn.dataset.isLeave === 'true';
+                    idInput.value = btn.dataset.id || '';
+                    dateInput.value = btn.dataset.date || '';
+                    noteInput.value = btn.dataset.note || '';
+                    errorEl.style.display = 'none';
+                    if (dateSub) dateSub.textContent = btn.dataset.date || '—';
+                    if (leaveWarning) leaveWarning.style.display = isLeave ? 'flex' : 'none';
+                    /* load picker values */
+                    var ps = parseClock2(btn.dataset.start);
+                    var pe = parseClock2(btn.dataset.end);
+                    if (window._atpEdit) window._atpEdit.load(ps ? ps.h : 8, ps ? ps.m : 0, pe ? pe.h : 17, pe ? pe.m : 0);
+                    ctrl.open();
+                });
+            });
+
+            document.getElementById('attendance-edit-close').addEventListener('click', ctrl.close);
+            modal.addEventListener('click', function (e) { if (e.target === modal) ctrl.close(); });
+            window.addEventListener('keydown', function (e) { if (e.key === 'Escape') ctrl.close(); });
+
+            form.addEventListener('submit', function (event) {
+                errorEl.style.display = 'none';
+                var sm = parseClock(startHidden.value);
+                var em = parseClock(endHidden.value);
+                if (sm === null || em === null) {
+                    event.preventDefault();
+                    errorEl.textContent = 'ساعت شروع و پایان الزامی است.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                if (em <= sm) {
+                    event.preventDefault();
+                    errorEl.textContent = 'ساعت پایان باید بعد از ساعت شروع باشد.';
+                    errorEl.style.display = 'block';
+                }
+            });
+
+            document.querySelectorAll('.inline-delete-form').forEach(function (df) {
+                df.addEventListener('submit', function (e) {
+                    if (!confirm('این تردد حذف شود؟')) e.preventDefault();
+                });
+            });
+        })();
+
+        /* ── ADD modal ── */
+        (function () {
+            var modal = document.getElementById('attendance-add-modal');
+            var ctrl = makeModalController(modal);
+            var form = document.getElementById('attendance-add-form');
+            var errorEl = document.getElementById('add-form-error');
+            var dateInput = document.getElementById('add-work-date');
+            var noteInput = document.getElementById('add-note');
+            var dateSub = document.getElementById('add-date-sub');
+            var startHidden = document.getElementById('add-start-time');
+            var endHidden = document.getElementById('add-end-time');
+
+            document.querySelectorAll('.attendance-add-trigger').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    dateInput.value = btn.dataset.date || '';
+                    noteInput.value = '';
+                    errorEl.style.display = 'none';
+                    if (dateSub) dateSub.textContent = btn.dataset.date || '—';
+                    if (window._atpAdd) window._atpAdd.load(8, 0, 17, 0);
+                    ctrl.open();
+                });
+            });
+
+            document.getElementById('attendance-add-close').addEventListener('click', ctrl.close);
+            modal.addEventListener('click', function (e) { if (e.target === modal) ctrl.close(); });
+            window.addEventListener('keydown', function (e) { if (e.key === 'Escape') ctrl.close(); });
+
+            form.addEventListener('submit', function (event) {
+                errorEl.style.display = 'none';
+                var sm = parseClock(startHidden.value);
+                var em = parseClock(endHidden.value);
+                if (sm === null || em === null) {
+                    event.preventDefault();
+                    errorEl.textContent = 'ساعت شروع و پایان الزامی است.';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                if (em <= sm) {
+                    event.preventDefault();
+                    errorEl.textContent = 'ساعت پایان باید بعد از ساعت شروع باشد.';
+                    errorEl.style.display = 'block';
+                }
+            });
+        })();
+    })();
+
+</script>
+{% endblock %}

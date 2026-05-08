@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}مدیریت درخواست‌های مرخصی{% endblock %}
+
+{% block content %}
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی من</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-glow">📋 مرخصی‌ها</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity">
+                <span class="profile-avatar">📋</span>
+                <div>
+                    <h2 class="side-profile-title">مدیریت مرخصی</h2>
+                    <p class="side-profile-sub">Superuser Workspace</p>
+                </div>
+            </div>
+            <div class="side-badges">
+                <span class="chip chip-active">{{ pending_count }} در انتظار</span>
+            </div>
+        </article>
+
+        <article class="side-profile-card reveal in-view" style="--delay:.06s;">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <a href="?status=pending"
+                    class="btn {% if status_filter == 'pending' %}btn-glow{% else %}btn-outline{% endif %}">
+                    ⏳ در انتظار بررسی
+                    {% if pending_count %}<span class="leave-pending-chip">{{ pending_count }}</span>{% endif %}
+                </a>
+                <a href="?status=approved"
+                    class="btn {% if status_filter == 'approved' %}btn-glow{% else %}btn-outline{% endif %}">
+                    ✅ تایید شده
+                </a>
+                <a href="?status=rejected"
+                    class="btn {% if status_filter == 'rejected' %}btn-glow{% else %}btn-outline{% endif %}">
+                    ❌ رد شده
+                </a>
+                <a href="?status=all"
+                    class="btn {% if status_filter == 'all' %}btn-glow{% else %}btn-outline{% endif %}">
+                    📄 همه
+                </a>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+        <section class="glass-card reveal in-view manage-head page-intro">
+            <div class="card-head split-head">
+                <div>
+                    <p class="kicker">Superuser Workspace</p>
+                    <h1>درخواست‌های مرخصی</h1>
+                    <p>بررسی، تایید یا رد درخواست‌های مرخصی کارمندان.</p>
+                </div>
+                <span class="chip chip-active" style="font-size:.9rem;padding:6px 14px;">
+                    {{ pending_count }} در انتظار
+                </span>
+            </div>
+        </section>
+
+        {% if messages %}
+        <section class="stack messages-stack" style="margin-bottom:0;">
+            {% for message in messages %}
+            <article class="toast {{ message.tags }}">{{ message }}</article>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        <section class="glass-card reveal in-view" style="--delay:.08s;">
+            <div class="table-shell">
+                <table class="leave-mgmt-table">
+                    <thead>
+                        <tr>
+                            <th>کارمند</th>
+                            <th>نوع</th>
+                            <th>بازه / تاریخ</th>
+                            <th>دلیل</th>
+                            <th>وضعیت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in leaves_qs %}
+                        <tr class="leave-row-{{ leave.status }}">
+                            <td>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="chat-avatar"
+                                        style="width:32px;height:32px;font-size:.85rem;flex-shrink:0;">{{
+                                        leave.user.get_full_name|default:leave.user.username|slice:':1' }}</span>
+                                    <div>
+                                        <strong>{{ leave.user.get_full_name|default:leave.user.username }}</strong>
+                                        <br><small style="color:#6b7fa3;">@{{ leave.user.username }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if leave.leave_type == 'daily' %}
+                                <span class="pill">روزانه</span>
+                                {% else %}
+                                <span class="pill">ساعتی</span>
+                                {% endif %}
+                            </td>
+                            <td style="direction:ltr;text-align:right;">
+                                {% if leave.leave_type == 'daily' %}
+                                {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
+                                <br><small style="color:#6b7fa3;">{{ leave.days_count }} روز</small>
+                                {% else %}
+                                {{ leave.leave_date|jalali_date }}
+                                <br><small style="color:#6b7fa3;">{{ leave.start_time|time:'H:i' }} – {{
+                                    leave.end_time|time:'H:i' }}</small>
+                                {% endif %}
+                            </td>
+                            <td style="max-width:180px;font-size:.85rem;">{{ leave.reason|default:'—' }}</td>
+                            <td>
+                                {% if leave.status == 'pending' %}
+                                <span class="pill pending">در انتظار</span>
+                                {% elif leave.status == 'approved' %}
+                                <span class="pill approved">تایید شده</span>
+                                {% else %}
+                                <span class="pill rejected">رد شده</span>
+                                {% endif %}
+                                {% if leave.admin_note %}
+                                <br><small style="color:#6b7fa3;font-size:.75rem;">{{ leave.admin_note }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if leave.status == 'pending' %}
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <form method="post" style="margin:0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="leave_id" value="{{ leave.pk }}">
+                                        <input type="hidden" name="action" value="approve">
+                                        <button type="submit" class="btn btn-xs btn-glow">✅ تایید</button>
+                                    </form>
+                                    <button type="button" class="btn btn-xs btn-danger"
+                                        onclick="openReject({{ leave.pk }})">❌ رد</button>
+                                </div>
+                                {% elif leave.status == 'approved' %}
+                                <small style="color:#22c55e;">✓ توسط {{
+                                    leave.reviewer.get_full_name|default:leave.reviewer.username }}</small>
+                                {% else %}
+                                <small style="color:#e53e3e;">✗ توسط {{
+                                    leave.reviewer.get_full_name|default:leave.reviewer.username }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" style="text-align:center;padding:32px;color:#6b7fa3;">
+                                درخواستی در این دسته وجود ندارد.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</section>
+
+{# Modal for reject with note #}
+<div class="modal-backdrop" id="reject-modal" style="display:none;">
+    <section class="modal-dialog" role="dialog" aria-modal="true">
+        <header class="modal-head">
+            <h2>رد درخواست مرخصی</h2>
+            <button type="button" class="modal-close" onclick="closeReject()">×</button>
+        </header>
+        <div class="modal-body">
+            <form method="post" id="reject-form" class="stack">
+                {% csrf_token %}
+                <input type="hidden" name="leave_id" id="reject-leave-id">
+                <input type="hidden" name="action" value="reject">
+                <label for="reject-note">توضیح (اختیاری)</label>
+                <input type="text" name="admin_note" id="reject-note" class="f-input"
+                    placeholder="دلیل رد را بنویسید...">
+                <div class="action-row">
+                    <button type="submit" class="btn btn-danger">رد درخواست</button>
+                    <button type="button" class="btn btn-outline" onclick="closeReject()">انصراف</button>
+                </div>
+            </form>
+        </div>
+    </section>
+</div>
+
+<script>
+    function openReject(leaveId) {
+        document.getElementById('reject-leave-id').value = leaveId;
+        var modal = document.getElementById('reject-modal');
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+    }
+    function closeReject() {
+        var modal = document.getElementById('reject-modal');
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+    }
+    document.getElementById('reject-modal').addEventListener('click', function (e) {
+        if (e.target === this) closeReject();
+    });
+</script>
+{% endblock %}

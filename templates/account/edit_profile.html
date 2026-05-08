@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load persian_date %}
+
+{% block title %}ویرایش پروفایل{% endblock %}
+
+{% block content %}
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:edit_profile' %}" class="btn btn-glow">✏️ ویرایش پروفایل</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity"
+                style="margin-bottom:12px;flex-direction:column;align-items:center;text-align:center;gap:10px;">
+                {% if profile_obj.avatar %}
+                <img src="{{ profile_obj.avatar.url }}" alt="آواتار"
+                    style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent,#0578ff);">
+                {% else %}
+                <span class="profile-avatar"
+                    style="width:80px;height:80px;font-size:2rem;line-height:80px;text-align:center;">{{
+                    request.user.get_full_name|default:request.user.username|slice:':1' }}</span>
+                {% endif %}
+                <div>
+                    <h2 class="side-profile-title">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                    <p class="side-profile-sub">@{{ request.user.username }}</p>
+                    {% if profile_obj.job_title %}
+                    <p class="side-profile-sub" style="margin-top:2px;">{{ profile_obj.job_title }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% if profile_obj.bio %}
+            <p style="font-size:.85rem;color:var(--text-muted,#6b7fa3);line-height:1.6;margin-top:6px;">{{
+                profile_obj.bio }}</p>
+            {% endif %}
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+                <a href="{% url 'account:profile' %}" class="btn btn-outline" style="width:100%;text-align:center;">←
+                    بازگشت به حساب</a>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+        <section class="glass-card reveal in-view manage-head page-intro">
+            <p class="kicker">تنظیمات شخصی</p>
+            <h1>ویرایش پروفایل</h1>
+            <p>اطلاعات شخصی خود را ویرایش و ذخیره کنید.</p>
+        </section>
+
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="glass-card"
+            style="border-right:4px solid #22c55e;padding:12px 16px;margin-bottom:16px;color:#22c55e;font-weight:600;">
+            ✅ {{ msg }}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" class="glass-card reveal in-view" style="--delay:.1s;">
+            {% csrf_token %}
+
+            <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-main);">اطلاعات شخصی</h2>
+
+            <div class="feature-grid compact-grid" style="margin-bottom:16px;">
+                <div class="stack">
+                    <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}<small class="form-error">{{ form.first_name.errors|striptags
+                        }}</small>{% endif %}
+                </div>
+                <div class="stack">
+                    <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}<small class="form-error">{{ form.last_name.errors|striptags
+                        }}</small>{% endif %}
+                </div>
+            </div>
+
+            <div class="stack" style="margin-bottom:16px;">
+                <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                {{ form.email }}
+                {% if form.email.errors %}<small class="form-error">{{ form.email.errors|striptags }}</small>{% endif %}
+            </div>
+
+            <div class="feature-grid compact-grid" style="margin-bottom:16px;">
+                <div class="stack">
+                    <label for="{{ form.birth_date.id_for_label }}">{{ form.birth_date.label }}</label>
+                    {{ form.birth_date }}
+                    <small class="form-hint">فرمت جلالی: ۱۳۷۰/۰۱/۱۵</small>
+                    {% if form.birth_date.errors %}<small class="form-error">{{ form.birth_date.errors|striptags
+                        }}</small>{% endif %}
+                </div>
+                <div class="stack">
+                    <label for="{{ form.national_id.id_for_label }}">{{ form.national_id.label }}</label>
+                    {{ form.national_id }}
+                    <small class="form-hint">۱۰ رقم بدون خط تیره</small>
+                    {% if form.national_id.errors %}<small class="form-error">{{ form.national_id.errors|striptags
+                        }}</small>{% endif %}
+                </div>
+            </div>
+
+            <div class="stack" style="margin-bottom:24px;">
+                <label for="{{ form.bio.id_for_label }}">{{ form.bio.label }}</label>
+                {{ form.bio }}
+                {% if form.bio.errors %}<small class="form-error">{{ form.bio.errors|striptags }}</small>{% endif %}
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--border,rgba(255,255,255,.08));margin-bottom:20px;">
+
+            <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-main);">تصویر پروفایل</h2>
+
+            {% if profile_obj.avatar %}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <img src="{{ profile_obj.avatar.url }}" alt="آواتار فعلی"
+                    style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#0578ff);">
+                <div>
+                    <p style="font-size:.85rem;margin:0 0 6px;">تصویر فعلی</p>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem;cursor:pointer;">
+                        {{ form.remove_avatar }}
+                        <span style="color:#e53e3e;">حذف تصویر فعلی</span>
+                    </label>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="stack" style="margin-bottom:24px;">
+                <label for="{{ form.avatar.id_for_label }}">{{ form.avatar.label }}</label>
+                {{ form.avatar }}
+                <small class="form-hint">فرمت‌های مجاز: JPG، PNG، WebP — حداکثر ۵ مگابایت</small>
+                {% if form.avatar.errors %}<small class="form-error">{{ form.avatar.errors|striptags }}</small>{% endif
+                %}
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="submit" class="btn btn-glow">💾 ذخیره تغییرات</button>
+                <a href="{% url 'account:profile' %}" class="btn btn-outline">انصراف</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+<script>
+    // Avatar preview before upload
+    (function () {
+        var input = document.getElementById('{{ form.avatar.id_for_label }}');
+        if (!input) return;
+        input.addEventListener('change', function () {
+            if (!this.files || !this.files[0]) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                var preview = document.getElementById('avatar-preview-new');
+                if (!preview) {
+                    preview = document.createElement('img');
+                    preview.id = 'avatar-preview-new';
+                    preview.style.cssText = 'width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#0578ff);margin-top:8px;';
+                    input.parentNode.insertBefore(preview, input.nextSibling);
+                }
+                preview.src = e.target.result;
+            };
+            reader.readAsDataURL(this.files[0]);
+        });
+    })();
+</script>
+{% endblock %}

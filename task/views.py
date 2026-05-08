@@ -4,6 +4,7 @@ from math import ceil
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -28,9 +29,13 @@ def _month_bounds(current_date):
 
 
 def _format_minutes(total_minutes):
-    hours = total_minutes // 60
-    minutes = total_minutes % 60
-    return f'{hours}:{minutes:02d}'
+    total_hours = (int(total_minutes or 0)) / 60
+    return f'{total_hours:.2f} ساعت'
+
+
+def _format_minutes_to_hours(total_minutes):
+    total_hours = (int(total_minutes or 0)) / 60
+    return f'{total_hours:.2f}'
 
 
 def _overlap_days(start_date, end_date, month_start, month_end):
@@ -53,8 +58,31 @@ def _monthly_work_snapshot(user, month_start, next_month_start):
     return total_minutes, sessions_count
 
 
+def _serialize_recent_sessions(user, limit=10):
+    recent_sessions = AttendanceSession.objects.filter(user=user).order_by('-start_time')[:limit]
+    return [
+        {
+            'start_at': format_jalali_datetime(session.start_time),
+            'is_active': session.end_time is None,
+            'end_at': format_jalali_datetime(session.end_time) if session.end_time else '',
+            'duration_hours': _format_minutes_to_hours(session.duration_minutes) if session.end_time else '',
+            'note': session.note or '-',
+        }
+        for session in recent_sessions
+    ]
+
+
 def _session_elapsed_seconds(session):
     return int((timezone.now() - session.start_time).total_seconds())
+
+
+def _crossed_workday(session):
+    return timezone.localdate() != timezone.localtime(session.start_time).date()
+
+
+def _end_of_session_day(session):
+    start_local = timezone.localtime(session.start_time)
+    return start_local.replace(hour=23, minute=59, second=59, microsecond=0)
 
 
 @login_required
@@ -99,8 +127,15 @@ def attendance_action(request):
         if note:
             active_session.note = note
             active_session.save(update_fields=['note'])
-        active_session.close_session()
-        user_message = 'پایان ثبت شد و تردد ذخیره شد.'
+        end_time_override = _end_of_session_day(active_session) if _crossed_workday(active_session) else None
+        try:
+            active_session.close_session(end_time=end_time_override)
+        except ValidationError as exc:
+            return JsonResponse({'ok': False, 'message': ' | '.join(exc.messages)}, status=400)
+        if end_time_override:
+            user_message = 'تردد به‌خاطر عبور از روز، تا پایان همان روز بسته شد.'
+        else:
+            user_message = 'پایان ثبت شد و تردد ذخیره شد.'
 
     active_session = (
         AttendanceSession.objects.filter(user=request.user, end_time__isnull=True)
@@ -128,6 +163,7 @@ def attendance_action(request):
             'monthly_total_time_text': _format_minutes(total_minutes),
             'monthly_sessions_count': sessions_count,
             'monthly_sessions_hint': f'{sessions_count} تردد ثبت شده',
+            'recent_sessions': _serialize_recent_sessions(request.user),
         }
     )
 
@@ -172,8 +208,16 @@ def dashboard(request):
                 if note:
                     active_session.note = note
                     active_session.save(update_fields=['note'])
-                active_session.close_session()
-                messages.success(request, 'پایان ثبت شد و تردد با موفقیت ذخیره شد.')
+                end_time_override = _end_of_session_day(active_session) if _crossed_workday(active_session) else None
+                try:
+                    active_session.close_session(end_time=end_time_override)
+                except ValidationError as exc:
+                    messages.error(request, ' | '.join(exc.messages))
+                    return redirect('task:dashboard')
+                if end_time_override:
+                    messages.warning(request, 'تردد به‌خاطر عبور از روز، تا پایان همان روز بسته شد.')
+                else:
+                    messages.success(request, 'پایان ثبت شد و تردد با موفقیت ذخیره شد.')
 
         elif action in {'approve_leave', 'reject_leave'} and request.user.is_superuser:
             leave = get_object_or_404(LeaveRequest, id=request.POST.get('leave_id'))
@@ -230,6 +274,9 @@ def dashboard(request):
     if active_session:
         active_elapsed_seconds = int((timezone.now() - active_session.start_time).total_seconds())
 
+    from account.models import EmployeeProfile as EP
+    online_employees = EP.get_online_employees().exclude(user=request.user)
+
     context = {
         'profile': profile,
         'active_session': active_session,
@@ -247,5 +294,6 @@ def dashboard(request):
         'team_overview': team_overview,
         'pending_team_leaves': pending_team_leaves,
         'month_label': format_jalali_month_year(today),
+        'online_employees': online_employees,
     }
     return render(request, 'task/dashboard.html', context)

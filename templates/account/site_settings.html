@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+
+{% block title %}تنظیمات سایت{% endblock %}
+
+{% block content %}
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-glow">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity">
+                <span class="profile-avatar">⚙</span>
+                <div>
+                    <h2 class="side-profile-title">تنظیمات سایت</h2>
+                    <p class="side-profile-sub">فقط مدیر ارشد</p>
+                </div>
+            </div>
+            <div class="side-badges">
+                <span class="chip {% if settings_obj.ip_restriction_enabled %}chip-active{% endif %}">
+                    محدودیت IP: {% if settings_obj.ip_restriction_enabled %}فعال{% else %}غیرفعال{% endif %}
+                </span>
+            </div>
+        </article>
+
+        <article class="side-profile-card reveal in-view" style="--delay:.12s;">
+            <div style="font-size:.82rem;color:#3a5070;line-height:1.9;display:grid;gap:16px;">
+                <div style="font-weight:700;color:#1e3a5f;margin-bottom:2px;">💡 چطور آی‌پی مودم را پیدا کنم؟</div>
+
+                <div>
+                    <div
+                        style="display:flex;align-items:center;gap:6px;font-weight:700;color:#1e3a5f;margin-bottom:6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                        روی مک (macOS)
+                    </div>
+                    <ol style="margin:0;padding-right:18px;display:grid;gap:4px;">
+                        <li>برنامه Terminal را باز کنید</li>
+                        <li>دستور زیر را وارد کنید:</li>
+                    </ol>
+                    <code class="how-to-code">curl -s ifconfig.me</code>
+                    <p style="margin:4px 0 0;color:var(--text-muted);">عدد نمایش داده‌شده = آی‌پی عمومی مودم شماست.</p>
+                </div>
+
+                <div style="border-top:1px solid rgba(17,57,106,.08);padding-top:14px;">
+                    <div
+                        style="display:flex;align-items:center;gap:6px;font-weight:700;color:#1e3a5f;margin-bottom:6px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <rect x="2" y="3" width="20" height="14" rx="2" />
+                            <line x1="8" y1="21" x2="16" y2="21" />
+                            <line x1="12" y1="17" x2="12" y2="21" />
+                        </svg>
+                        روی ویندوز
+                    </div>
+                    <ol style="margin:0;padding-right:18px;display:grid;gap:4px;">
+                        <li>کلیدهای <kbd
+                                style="background:#eee;border:1px solid #ccc;border-radius:4px;padding:1px 5px;font-size:.78rem;">Win
+                                + R</kbd> را بزنید</li>
+                        <li>بنویسید <code
+                                style="font-size:.8rem;background:#eef;padding:1px 5px;border-radius:4px;">cmd</code> و
+                            Enter</li>
+                        <li>دستور زیر را وارد کنید:</li>
+                    </ol>
+                    <code class="how-to-code">curl -s ifconfig.me</code>
+                    <p style="margin:4px 0 0;color:var(--text-muted);">یا در مرورگر <strong>whatismyip.com</strong> را
+                        باز کنید.</p>
+                </div>
+
+                <div
+                    style="border-top:1px solid rgba(17,57,106,.08);padding-top:10px;background:rgba(255,154,0,.07);border-radius:10px;padding:10px 12px;color:#7a470f;font-size:.78rem;">
+                    ⚠ آی‌پی مودم ممکن است هر چند وقت یکبار توسط اپراتور اینترنت تغییر کند. در آن صورت لیست را اینجا
+                    آپدیت کنید.
+                </div>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+        <section class="glass-card reveal in-view page-intro" style="padding:28px 32px 32px;">
+            <div class="card-head split-head" style="margin-bottom:24px;">
+                <div>
+                    <p class="kicker">Site Configuration</p>
+                    <h1>تنظیمات دسترسی</h1>
+                    <p style="color:var(--text-muted);font-size:.88rem;margin-top:6px;">
+                        می‌توانید دسترسی به سایت را فقط از آی‌پی‌های مشخص (مثلاً مودم دفتر) محدود کنید.
+                    </p>
+                </div>
+            </div>
+
+            {# نوار آی‌پی جاری #}
+            <div class="current-ip-banner">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>آی‌پی عمومی اتصال شما:</span>
+                <code class="ip-badge" id="my-current-ip">{{ current_client_ip|default:'-' }}</code>
+                <button type="button" class="ip-add-current-btn" id="detect-current-ip" title="شناسایی خودکار آی‌پی">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                        <polyline points="21 3 21 9 15 9" />
+                    </svg>
+                    شناسایی خودکار
+                </button>
+                <button type="button" class="ip-add-current-btn" id="add-current-ip" title="افزودن این آی‌پی به لیست">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    افزودن به لیست
+                </button>
+            </div>
+
+            <form method="post" class="settings-form" id="settings-form">
+                {% csrf_token %}
+
+                <div class="settings-field-group">
+                    <label class="settings-toggle-row" for="ip_restriction_enabled">
+                        <div class="settings-toggle-text">
+                            <strong>فعال‌سازی محدودیت IP</strong>
+                            <span>اگر فعال باشد، فقط آی‌پی‌های لیست زیر اجازه دسترسی دارند. پانل ادمین همیشه باز
+                                است.</span>
+                        </div>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="ip_restriction_enabled" name="ip_restriction_enabled" {% if
+                                settings_obj.ip_restriction_enabled %}checked{% endif %}>
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="settings-field-group">
+                    <div class="settings-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <rect x="2" y="2" width="20" height="8" rx="2" />
+                            <rect x="2" y="14" width="20" height="8" rx="2" />
+                            <line x1="6" y1="6" x2="6.01" y2="6" />
+                            <line x1="6" y1="18" x2="6.01" y2="18" />
+                        </svg>
+                        آی‌پی‌های مجاز
+                    </div>
+
+                    <div class="ip-list" id="ip-list">
+                        {% for ip in settings_obj.get_allowed_ip_list %}
+                        <div class="ip-row">
+                            <input type="text" name="allowed_ips" value="{{ ip }}" class="f-input ip-input" dir="ltr"
+                                placeholder="مثال: 185.10.20.30" autocomplete="off" spellcheck="false">
+                            <button type="button" class="ip-remove-btn" title="حذف">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                        {% empty %}
+                        <p class="ip-empty-state" id="ip-empty">هنوز آی‌پی‌ای ثبت نشده.</p>
+                        {% endfor %}
+                    </div>
+
+                    <button type="button" class="ip-add-row-btn" id="add-ip-row">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        افزودن آی‌پی جدید
+                    </button>
+                </div>
+
+                <button type="submit" class="btn btn-glow" style="min-width:160px;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    ذخیره تنظیمات
+                </button>
+            </form>
+
+            <script>
+                (function () {
+                    var list = document.getElementById('ip-list');
+                    var currentIpEl = document.getElementById('my-current-ip');
+                    var currentIp = currentIpEl.textContent.trim();
+                    var detectBtn = document.getElementById('detect-current-ip');
+
+                    function removeEmpty() {
+                        var e = document.getElementById('ip-empty');
+                        if (e) e.remove();
+                    }
+                    function checkEmpty() {
+                        if (!list.querySelector('.ip-row')) {
+                            var p = document.createElement('p');
+                            p.className = 'ip-empty-state'; p.id = 'ip-empty';
+                            p.textContent = 'هنوز آی‌پی‌ای ثبت نشده.';
+                            list.appendChild(p);
+                        }
+                    }
+                    function makeRow(value) {
+                        removeEmpty();
+                        var row = document.createElement('div');
+                        row.className = 'ip-row';
+                        row.innerHTML =
+                            '<input type="text" name="allowed_ips" value="' + (value || '') + '" class="f-input ip-input" dir="ltr" placeholder="مثال: 185.10.20.30" autocomplete="off" spellcheck="false">' +
+                            '<button type="button" class="ip-remove-btn" title="حذف"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+                        row.querySelector('.ip-remove-btn').addEventListener('click', function () { row.remove(); checkEmpty(); });
+                        list.appendChild(row);
+                        row.querySelector('input').focus();
+                    }
+
+                    list.querySelectorAll('.ip-remove-btn').forEach(function (btn) {
+                        btn.addEventListener('click', function () { btn.closest('.ip-row').remove(); checkEmpty(); });
+                    });
+
+                    document.getElementById('add-ip-row').addEventListener('click', function () { makeRow(''); });
+
+                    function addCurrentIp() {
+                        if (!currentIp || currentIp === '-') return;
+                        var already = false;
+                        list.querySelectorAll('.ip-input').forEach(function (inp) {
+                            if (inp.value.trim() === currentIp) already = true;
+                        });
+                        if (!already) makeRow(currentIp);
+                    }
+
+                    if (detectBtn) {
+                        detectBtn.addEventListener('click', function () {
+                            var original = detectBtn.innerHTML;
+                            detectBtn.disabled = true;
+                            detectBtn.textContent = 'در حال شناسایی...';
+                            // ابتدا از سرویس خارجی IP عمومی مودم را می‌گیریم
+                            fetch('https://api.ipify.org?format=json')
+                                .then(function (r) { return r.json(); })
+                                .then(function (d) {
+                                    if (d.ip) {
+                                        currentIp = d.ip;
+                                        currentIpEl.textContent = d.ip;
+                                        addCurrentIp();
+                                    }
+                                })
+                                .catch(function () {
+                                    // اگر سرویس خارجی در دسترس نبود، از Django fallback می‌گیریم
+                                    fetch('{% url "account:detect_my_ip" %}', {
+                                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                                    })
+                                        .then(function (r) { return r.json(); })
+                                        .then(function (d) {
+                                            if (d.ok && d.ip) {
+                                                currentIp = d.ip;
+                                                currentIpEl.textContent = d.ip;
+                                                addCurrentIp();
+                                            }
+                                        })
+                                        .catch(function () { });
+                                })
+                                .finally(function () {
+                                    detectBtn.disabled = false;
+                                    detectBtn.innerHTML = original;
+                                });
+                        });
+                    }
+
+                    document.getElementById('add-current-ip').addEventListener('click', function () {
+                        addCurrentIp();
+                    });
+                })();
+            </script>
+        </section>
+    </div>
+</section>
+
+<script>
+</script>
+{% endblock %}

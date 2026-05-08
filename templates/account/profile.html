@@ -4,68 +4,154 @@
 {% block title %}حساب کاربری{% endblock %}
 
 {% block content %}
-<section class="glass-card reveal in-view manage-head">
-    <p class="kicker">{{ month_label }}</p>
-    <h1>{{ request.user.get_full_name|default:request.user.username }}</h1>
-    <p class="side-profile-sub">@{{ request.user.username }}</p>
-    <div class="hero-chips">
-        <span class="chip">سمت: {{ profile_obj.job_title|default:'ثبت نشده' }}</span>
-        <span class="chip">استخدام: {{ profile_obj.hire_date|jalali_date }}</span>
-        <span class="chip">هدف روزانه: {{ daily_target_hours }} ساعت</span>
-        <span class="chip">هدف ماهانه: {{ monthly_target_hours }} ساعت</span>
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-glow">👤 حساب</a>
+        <a href="{% url 'account:edit_profile' %}" class="btn btn-outline">✏️ ویرایش پروفایل</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
     </div>
-    <div class="action-row" style="margin-top:10px;">
-        <a href="{% url 'account:leaves' %}" class="btn btn-glow">مرخصی‌ها</a>
-        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">داشبورد</a>
-    </div>
-</section>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
 
-<section class="stat-grid">
-    <article class="stat-card reveal in-view" style="--delay:.05s;">
-        <span>تعداد کل ترددها</span>
-        <strong>{{ total_attendance_count }}</strong>
-    </article>
-    <article class="stat-card reveal in-view" style="--delay:.08s;">
-        <span>تعداد کل مرخصی‌ها</span>
-        <strong>{{ total_leave_count }}</strong>
-    </article>
-    <article class="stat-card reveal in-view" style="--delay:.12s;">
-        <span>ساعت کاری روزانه</span>
-        <strong>{{ daily_work_text }}</strong>
-    </article>
-    <article class="stat-card reveal in-view" style="--delay:.16s;">
-        <span>ساعت کاری ماهانه</span>
-        <strong>{{ monthly_work_text }}</strong>
-    </article>
-</section>
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity" style="margin-bottom:8px;">
+                {% if profile_obj.avatar %}
+                <img src="{{ profile_obj.avatar.url }}" alt="آواتار"
+                    style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#0578ff);flex-shrink:0;">
+                {% else %}
+                <span class="profile-avatar">{{ request.user.get_full_name|default:request.user.username|slice:':1'
+                    }}</span>
+                {% endif %}
+                <div>
+                    <h2 class="side-profile-title">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                    <p class="side-profile-sub">{{ profile_obj.job_title|default:'@'|add:request.user.username }}</p>
+                </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;">
+                <span class="chip">{{ month_label }}</span>
+                <span class="chip">استخدام: {{ profile_obj.hire_date|jalali_date }}</span>
+            </div>
+            <div class="side-metric-list" style="gap:6px;">
+                <div class="side-metric-row">
+                    <span>هدف روزانه</span>
+                    <strong>{{ daily_target_hours }} ساعت</strong>
+                </div>
+                <div class="side-metric-row">
+                    <span>هدف ماهانه</span>
+                    <strong>{{ monthly_target_hours }} ساعت</strong>
+                </div>
+                <div class="side-metric-row">
+                    <span>وضعیت امروز</span>
+                    <strong>{{ daily_work_text }}</strong>
+                </div>
+            </div>
+            <a href="{% url 'account:edit_profile' %}" class="btn btn-outline"
+                style="width:100%;text-align:center;margin-top:10px;">✏️ ویرایش پروفایل</a>
+        </article>
+    </aside>
 
-<section class="glass-card reveal in-view" style="--delay:.2s;">
-    <header class="card-head">
-        <h2>ترددهای اخیر من</h2>
-    </header>
-    <div class="table-shell">
-        <table>
-            <thead>
-                <tr>
-                    <th>شروع</th>
-                    <th>پایان</th>
-                    <th>مدت</th>
-                    <th>توضیح</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in recent_attendance %}
-                    <tr>
-                        <td>{{ row.start_time|jalali_datetime }}</td>
-                        <td>{% if row.end_time %}{{ row.end_time|jalali_datetime }}{% else %}<span class="pill pending">فعال</span>{% endif %}</td>
-                        <td>{% if row.end_time %}{{ row.duration_minutes }} دقیقه{% else %}-{% endif %}</td>
-                        <td>{{ row.note|default:'-' }}</td>
-                    </tr>
-                {% empty %}
-                    <tr><td colspan="4">هنوز ترددی ثبت نشده است.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="profile-main">
+        <section class="glass-card reveal in-view manage-head page-intro profile-overview">
+            <p class="kicker">پنل شخصی</p>
+            <h1>نمای کلی حساب کاربری</h1>
+            <p>
+                در این صفحه می‌تونی وضعیت تردد، ساعت‌های کاری و فعالیت اخیرت رو سریع ببینی و مدیریت کنی.
+            </p>
+        </section>
+
+        <section class="stat-grid">
+            <article class="stat-card reveal in-view" style="--delay:.05s;">
+                <span>تعداد کل ترددها</span>
+                <strong>{{ total_attendance_count }}</strong>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.09s;">
+                <span>تعداد کل مرخصی‌ها</span>
+                <strong>{{ total_leave_count }}</strong>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.13s;">
+                <span>ساعت کاری روزانه</span>
+                <strong>{{ daily_work_text }}</strong>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.17s;">
+                <span>ساعت کاری ماهانه</span>
+                <strong>{{ monthly_work_text }}</strong>
+            </article>
+        </section>
+
+        <section class="glass-card reveal in-view" style="--delay:.2s;">
+            <header class="card-head">
+                <h2>ترددهای اخیر من</h2>
+                <span class="head-badge">آخرین ۱۰ رکورد</span>
+            </header>
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>شروع</th>
+                            <th>پایان</th>
+                            <th>مدت</th>
+                            <th>توضیح</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in recent_attendance %}
+                        <tr>
+                            <td>{{ row.start_time|jalali_datetime }}</td>
+                            <td>{% if row.end_time %}{{ row.end_time|jalali_datetime }}{% else %}<span
+                                    class="pill pending">فعال</span>{% endif %}</td>
+                            <td>{% if row.end_time %}{{ row.duration_minutes|minutes_to_hours }} ساعت{% else %}-{% endif
+                                %}</td>
+                            <td>{{ row.note|default:'-' }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4">هنوز ترددی ثبت نشده است.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 </section>
+<script>
+    (function () {
+        var badge = document.getElementById('profile-chat-badge');
+        if (!badge) return;
+        function update() {
+            fetch('{% url "account:chat_unread" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.count > 0) {
+                        badge.textContent = d.count > 99 ? '99+' : d.count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }).catch(function () { });
+        }
+        update();
+        setInterval(update, 5000);
+    })();
+
+</script>
 {% endblock %}

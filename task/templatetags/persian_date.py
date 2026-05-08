@@ -53,3 +53,13 @@ def minutes_hhmm(value):
     hours = total_minutes // 60
     minutes = total_minutes % 60
     return f'{hours}:{minutes:02d}'
+
+
+@register.filter
+def minutes_to_hours(value):
+    try:
+        total_minutes = int(value or 0)
+    except (TypeError, ValueError):
+        return '0.00'
+
+    return f'{(total_minutes / 60):.2f}'

@@ -3,118 +3,243 @@
 {% block title %}مدیریت کارمندان{% endblock %}
 
 {% block content %}
-<section class="glass-card reveal in-view manage-head">
-    <div class="card-head split-head">
-        <div>
-            <p class="kicker">Superuser Workspace</p>
-            <h1>مدیریت کارمندان</h1>
-            <p>افزودن کارمند و تنظیم تارگت‌ها در یک جدول ساده.</p>
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-glow">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity">
+                <span class="profile-avatar">👥</span>
+                <div>
+                    <h2 class="side-profile-title">مدیریت کارمندان</h2>
+                    <p class="side-profile-sub">Superuser Workspace</p>
+                </div>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+
+        <section class="glass-card reveal in-view manage-head page-intro">
+            <div class="card-head split-head">
+                <div>
+                    <p class="kicker">Superuser Workspace</p>
+                    <h1>مدیریت کارمندان</h1>
+                    <p>افزودن کارمند و تنظیم تارگت‌ها در یک جدول ساده.</p>
+                </div>
+                <button type="button" class="btn btn-glow" id="open-employee-modal">افزودن کارمند</button>
+            </div>
+        </section>
+
+        <div class="modal-backdrop" id="employee-modal" {% if add_form.errors %}data-open-on-load="true" {% endif %}>
+            <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-form-title">
+                <header class="modal-head">
+                    <h2 id="employee-form-title">افزودن کارمند</h2>
+                    <button type="button" class="modal-close" id="close-employee-modal" aria-label="بستن">×</button>
+                </header>
+                <div class="modal-body">
+                    <form method="post" class="stack">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_employee">
+                        {% for field in add_form %}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% if field.name == 'hire_date' %}
+                        <div class="jalali-picker-wrap">
+                            {{ field }}
+                            <button type="button" class="jalali-cal-btn" data-target="{{ field.id_for_label }}"
+                                title="انتخاب از تقویم">📅</button>
+                        </div>
+                        <small class="form-hint">تاریخ را شمسی وارد کنید. مثال: 1405/02/08</small>
+                        {% else %}
+                        {{ field }}
+                        {% endif %}
+                        {% if field.errors %}
+                        <small class="form-error">{{ field.errors|striptags }}</small>
+                        {% endif %}
+                        {% endfor %}
+                        {% if add_form.non_field_errors %}
+                        <small class="form-error">{{ add_form.non_field_errors|striptags }}</small>
+                        {% endif %}
+                        <button type="submit" class="btn btn-glow">ثبت کارمند جدید</button>
+                    </form>
+                </div>
+            </section>
         </div>
-        <button type="button" class="btn btn-glow" id="open-employee-modal">افزودن کارمند</button>
+
+        <section class="glass-card reveal in-view" style="--delay:.14s;">
+            <header class="card-head">
+                <h2>جدول کارمندان</h2>
+            </header>
+
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>نام کاربری</th>
+                            <th>نام کامل</th>
+                            <th>سمت</th>
+                            <th>تارگت روزانه (ساعت)</th>
+                            <th>تارگت ماهانه (ساعت)</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for employee in employees %}
+                        <tr>
+                            <td>{{ employee.username }}</td>
+                            <td>{{ employee.get_full_name|default:'-' }}</td>
+                            <td>{% if employee.is_superuser %}مدیر سیستم{% else %}{{
+                                employee.employee_profile.position.name|default:'-' }}{% endif %}</td>
+                            <td>
+                                {% if employee.is_superuser %}
+                                -
+                                {% else %}
+                                <input name="daily_target_hours" type="number" min="1"
+                                    value="{{ employee.employee_profile.daily_target_hours }}"
+                                    class="f-input employee-table-input" form="targets-form-{{ employee.id }}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if employee.is_superuser %}
+                                -
+                                {% else %}
+                                <input name="monthly_target_hours" type="number" min="1"
+                                    value="{{ employee.employee_profile.monthly_target_hours }}"
+                                    class="f-input employee-table-input" form="targets-form-{{ employee.id }}">
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="employee-actions">
+                                    {% if not employee.is_superuser %}
+                                    <form id="targets-form-{{ employee.id }}" method="post" class="inline-form">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="update_targets">
+                                        <input type="hidden" name="user_id" value="{{ employee.id }}">
+                                        <button type="submit" class="btn btn-xs btn-glow">ذخیره تارگت</button>
+                                    </form>
+                                    {% endif %}
+
+                                    <button type="button" class="btn btn-xs btn-outline"
+                                        onclick="openEditModal({{ employee.id }}, '{{ employee.username|escapejs }}', '{{ employee.first_name|escapejs }}', '{{ employee.last_name|escapejs }}', '{{ employee.email|escapejs }}')">✏️
+                                        ویرایش</button>
+
+                                    <a href="{% url 'account:chat_with' employee.id %}"
+                                        class="btn btn-xs btn-outline">💬 پیام</a>
+
+                                    {% if not employee.is_superuser %}
+                                    <form method="post" class="inline-form"
+                                        onsubmit="return confirm('کارمند {{ employee.username }} حذف شود؟');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="delete_employee">
+                                        <input type="hidden" name="user_id" value="{{ employee.id }}">
+                                        <button type="submit" class="btn btn-xs btn-danger">حذف</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6">هنوز کارمندی ثبت نشده است.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
     </div>
 </section>
 
-<div class="modal-backdrop" id="employee-modal" {% if add_form.errors %}data-open-on-load="true"{% endif %}>
-    <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="employee-form-title">
-        <header class="modal-head">
-            <h2 id="employee-form-title">افزودن کارمند</h2>
-            <button type="button" class="modal-close" id="close-employee-modal" aria-label="بستن">×</button>
-        </header>
-        <div class="modal-body">
-            <form method="post" class="stack">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="add_employee">
-                {% for field in add_form %}
-                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                    {{ field }}
-                    {% if field.name == 'hire_date' %}
-                        <small class="form-hint">تاریخ را شمسی وارد کنید. مثال: 1405/02/08</small>
-                    {% endif %}
-                    {% if field.errors %}
-                        <small class="form-error">{{ field.errors|striptags }}</small>
-                    {% endif %}
-                {% endfor %}
-                {% if add_form.non_field_errors %}
-                    <small class="form-error">{{ add_form.non_field_errors|striptags }}</small>
-                {% endif %}
-                <button type="submit" class="btn btn-glow">ثبت کارمند جدید</button>
-            </form>
-        </div>
-    </section>
+<!-- ─── Edit Employee Modal ─── -->
+<div id="edit-employee-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+    <div class="modal-box">
+        <button id="close-edit-employee-modal" class="modal-close" aria-label="بستن">&times;</button>
+        <h2 class="modal-title">ویرایش کارمند</h2>
+        <form method="post" id="edit-employee-form">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_employee">
+            <input type="hidden" name="user_id" id="edit-user-id">
+            <div class="form-group">
+                <label>نام کاربری</label>
+                <input type="text" name="username" id="edit-username" class="input" dir="ltr" required
+                    autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>نام</label>
+                <input type="text" name="first_name" id="edit-first-name" class="input">
+            </div>
+            <div class="form-group">
+                <label>نام خانوادگی</label>
+                <input type="text" name="last_name" id="edit-last-name" class="input">
+            </div>
+            <div class="form-group">
+                <label>ایمیل</label>
+                <input type="email" name="email" id="edit-email" class="input" dir="ltr">
+            </div>
+            <div class="form-group">
+                <label>رمز عبور جدید <small style="opacity:.6">(خالی = بدون تغییر)</small></label>
+                <input type="password" name="new_password" class="input" autocomplete="new-password"
+                    placeholder="خالی بگذارید تا تغییر نکند">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-glow">ذخیره تغییرات</button>
+                <button type="button" id="cancel-edit-employee" class="btn btn-outline">انصراف</button>
+            </div>
+        </form>
+    </div>
 </div>
 
-<section class="glass-card reveal in-view" style="--delay:.14s;">
-    <header class="card-head">
-        <h2>جدول کارمندان</h2>
-    </header>
-
-    <div class="table-shell">
-        <table>
-            <thead>
-                <tr>
-                    <th>نام کاربری</th>
-                    <th>نام کامل</th>
-                    <th>سمت</th>
-                    <th>تارگت روزانه (ساعت)</th>
-                    <th>تارگت ماهانه (ساعت)</th>
-                    <th>عملیات</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for employee in employees %}
-                    <tr>
-                        <td>{{ employee.username }}</td>
-                        <td>{{ employee.get_full_name|default:'-' }}</td>
-                        <td>{{ employee.employee_profile.job_title|default:'-' }}</td>
-                        <td>
-                            <input
-                                name="daily_target_hours"
-                                type="number"
-                                min="1"
-                                value="{{ employee.employee_profile.daily_target_hours }}"
-                                class="f-input employee-table-input"
-                                form="targets-form-{{ employee.id }}"
-                            >
-                        </td>
-                        <td>
-                            <input
-                                name="monthly_target_hours"
-                                type="number"
-                                min="1"
-                                value="{{ employee.employee_profile.monthly_target_hours }}"
-                                class="f-input employee-table-input"
-                                form="targets-form-{{ employee.id }}"
-                            >
-                        </td>
-                        <td>
-                            <div class="employee-actions">
-                                <form id="targets-form-{{ employee.id }}" method="post" class="inline-form">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="update_targets">
-                                    <input type="hidden" name="user_id" value="{{ employee.id }}">
-                                    <button type="submit" class="btn btn-xs btn-glow">ذخیره تارگت</button>
-                                </form>
-
-                                <form method="post" class="inline-form" onsubmit="return confirm('کارمند {{ employee.username }} حذف شود؟');">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="delete_employee">
-                                    <input type="hidden" name="user_id" value="{{ employee.id }}">
-                                    <button type="submit" class="btn btn-xs btn-danger">حذف</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="6">هنوز کارمندی ثبت نشده است.</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
-
 <script>
+    /* ─── Edit Employee Modal ─── */
+    (function () {
+        var modal = document.getElementById('edit-employee-modal');
+        var closeBtn = document.getElementById('close-edit-employee-modal');
+        var cancelBtn = document.getElementById('cancel-edit-employee');
+
+        function openEditModal(userId, username, firstName, lastName, email) {
+            document.getElementById('edit-user-id').value = userId;
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-first-name').value = firstName;
+            document.getElementById('edit-last-name').value = lastName;
+            document.getElementById('edit-email').value = email;
+            modal.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+        function closeEditModal() {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        window.openEditModal = openEditModal;
+        if (closeBtn) closeBtn.addEventListener('click', closeEditModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
+        if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeEditModal(); });
+        window.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeEditModal(); });
+    })();
+
+    /* ─── Add Employee Modal ─── */
     (function () {
         const openBtn = document.getElementById('open-employee-modal');
         const closeBtn = document.getElementById('close-employee-modal');
@@ -124,13 +249,8 @@
         let closeTimer = null;
 
         function openModal() {
-            if (!modal) {
-                return;
-            }
-            if (closeTimer) {
-                clearTimeout(closeTimer);
-                closeTimer = null;
-            }
+            if (!modal) { return; }
+            if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
             modal.classList.remove('closing');
             if (!prefersReducedMotion) {
                 modal.classList.remove('opening');
@@ -140,25 +260,17 @@
             modal.classList.add('open');
             document.body.style.overflow = 'hidden';
             const firstInput = modal.querySelector('input, select, textarea');
-            if (firstInput) {
-                firstInput.focus();
-            }
+            if (firstInput) { firstInput.focus(); }
             if (!prefersReducedMotion) {
-                setTimeout(function () {
-                    modal.classList.remove('opening');
-                }, 520);
+                setTimeout(function () { modal.classList.remove('opening'); }, 520);
             }
         }
 
         function closeModal() {
-            if (!modal || !modal.classList.contains('open')) {
-                return;
-            }
+            if (!modal || !modal.classList.contains('open')) { return; }
             modal.classList.remove('opening');
             modal.classList.add('closing');
-            if (closeTimer) {
-                clearTimeout(closeTimer);
-            }
+            if (closeTimer) { clearTimeout(closeTimer); }
             closeTimer = setTimeout(function () {
                 modal.classList.remove('open');
                 modal.classList.remove('closing');
@@ -167,29 +279,306 @@
             }, MODAL_CLOSE_MS);
         }
 
-        if (openBtn) {
-            openBtn.addEventListener('click', openModal);
-        }
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeModal);
-        }
+        if (openBtn) { openBtn.addEventListener('click', function (e) { e.stopPropagation(); openModal(); }); }
+        if (closeBtn) { closeBtn.addEventListener('click', closeModal); }
         if (modal) {
             modal.addEventListener('click', function (event) {
-                if (event.target === modal) {
-                    closeModal();
-                }
+                if (event.target === modal && !document.querySelector('.jp-popup')) { closeModal(); }
             });
         }
-
         window.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                closeModal();
+            if (event.key === 'Escape') { closeModal(); }
+        });
+        if (modal && modal.dataset.openOnLoad === 'true') { openModal(); }
+    })();
+
+    /* ─── Jalali Calendar Picker ─── */
+    (function () {
+        var MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        var DAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+
+        function jalaliToJulianDay(jy, jm, jd) {
+            var epbase = jy - (jy >= 0 ? 474 : 473);
+            var epyear = 474 + (epbase % 2820);
+            return jd + (jm <= 6 ? (jm - 1) * 31 : (jm - 1) * 30 + 6) + Math.floor((epyear * 682 - 110) / 2816) + (epyear - 1) * 365 + Math.floor(epbase / 2820) * 1029983 + 1948319.5;
+        }
+
+        function julianDayToGregorian(jdn) {
+            var j = Math.floor(jdn) + 32044;
+            var g = Math.floor((4 * j + 3) / 146097);
+            var dg = j - Math.floor(146097 * g / 4);
+            var c = Math.floor((4 * dg + 3) / 1461);
+            var dc = dg - Math.floor(1461 * c / 4);
+            var b = Math.floor((5 * dc + 2) / 153);
+            var db = dc - Math.floor((153 * b + 2) / 5);
+            var gd = db + 1;
+            var gm = b + 3 - 12 * Math.floor(b / 10);
+            var gy = 100 * g + c - 4800 + Math.floor(b / 10);
+            return [gy, gm, gd];
+        }
+
+        function toGregorian(jy, jm, jd) {
+            return julianDayToGregorian(jalaliToJulianDay(jy, jm, jd));
+        }
+
+        function toJalali(gy, gm, gd) {
+            var jdn = Math.floor((1461 * (gy + 4800 + Math.floor((gm - 14) / 12))) / 4 + Math.floor((367 * (gm - 2 - 12 * Math.floor((gm - 14) / 12))) / 12) - Math.floor((3 * (Math.floor((gy + 4900 + Math.floor((gm - 14) / 12)) / 100))) / 4) + gd - 32075) - 0.5;
+            var depoch = jdn - jalaliToJulianDay(475, 1, 1);
+            var cycle = Math.floor(depoch / 1029983);
+            var cyear = depoch % 1029983;
+            var ycycle;
+            if (cyear === 1029982) { ycycle = 2820; }
+            else {
+                var aux1 = Math.floor(cyear / 366), aux2 = cyear % 366;
+                ycycle = Math.floor((2134 * aux1 + 2816 * aux2 + 2815) / 1028522) + aux1 + 1;
             }
+            var jy = ycycle + 2820 * cycle + 474;
+            if (jy <= 0) jy--;
+            var yday = jdn - jalaliToJulianDay(jy, 1, 1) + 1;
+            var jm = (yday <= 186) ? Math.ceil(yday / 31) : Math.ceil((yday - 6) / 30);
+            var jd2 = jdn - jalaliToJulianDay(jy, jm, 1) + 1;
+            return [jy, jm, jd2];
+        }
+
+        function monthLen(jy, jm) {
+            if (jm <= 6) return 31;
+            if (jm <= 11) return 30;
+            var esfand1 = new Date(...toGregorian(jy, 12, 1).map((v, i) => i === 1 ? v - 1 : v));
+            var farvardin1 = new Date(...toGregorian(jy + 1, 1, 1).map((v, i) => i === 1 ? v - 1 : v));
+            return Math.round((farvardin1 - esfand1) / (86400000)) === 30 ? 30 : 29;
+        }
+
+        function firstWeekday(jy, jm) {
+            var g = toGregorian(jy, jm, 1);
+            var dow = new Date(g[0], g[1] - 1, g[2]).getDay();
+            return (dow + 1) % 7;
+        }
+
+        function todayJalali() {
+            var n = new Date();
+            return toJalali(n.getFullYear(), n.getMonth() + 1, n.getDate());
+        }
+
+        var activePicker = null;
+        var picker = null;
+        var curY, curM;
+
+        function buildPicker(targetInput) {
+            if (picker) picker.remove();
+            var today = todayJalali();
+            var selVal = (targetInput.value || '').replace(/[۰-۹]/g, function (c) { return c.charCodeAt(0) - 1728; }).replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 1584; });
+            var parts = selVal.split('/');
+            curY = parseInt(parts[0]) || today[0];
+            curM = parseInt(parts[1]) || today[1];
+            if (isNaN(curY) || curY < 1300) curY = today[0];
+            if (isNaN(curM) || curM < 1 || curM > 12) curM = today[1];
+            var h = '<div class="jp-head"><button type="button" data-jp="next" class="jp-arrow">&#8249;</button><div class="jp-title-block"><span class="jp-month">' + MONTHS[curM - 1] + '</span><span class="jp-year">' + curY + '</span></div><button type="button" data-jp="prev" class="jp-arrow">&#8250;</button></div>';
+            h += '<div class="jp-grid">';
+            for (var i = 0; i < 7; i++) h += '<div class="jp-dow">' + DAYS[i] + '</div>';
+            var fw = firstWeekday(curY, curM);
+            for (var e = 0; e < fw; e++) h += '<div></div>';
+            var len = monthLen(curY, curM);
+            for (var d = 1; d <= len; d++) {
+                var isTd = (curY === today[0] && curM === today[1] && d === today[2]);
+                h += '<button type="button" data-jp="day" data-d="' + d + '" class="jp-day' + (isTd ? ' jp-td' : '') + '">' + d + '</button>';
+            }
+            h += '</div>';
+            h += '<div class="jp-foot"><button type="button" data-jp="today" class="jp-btn-today">📅 امروز</button></div>';
+            picker = document.createElement('div');
+            picker.className = 'jp-popup';
+            picker.innerHTML = h;
+            document.body.appendChild(picker);
+            positionPicker(targetInput);
+            picker.querySelectorAll('[data-jp="next"]').forEach(function (btn) {
+                btn.addEventListener('click', function () { curM++; if (curM > 12) { curM = 1; curY++; } buildPicker(targetInput); });
+            });
+            picker.querySelectorAll('[data-jp="prev"]').forEach(function (btn) {
+                btn.addEventListener('click', function () { curM--; if (curM < 1) { curM = 12; curY--; } buildPicker(targetInput); });
+            });
+            picker.querySelectorAll('[data-jp="today"]').forEach(function (btn) {
+                btn.addEventListener('click', function () { var td = todayJalali(); targetInput.value = pad4(td[0]) + '/' + pad2(td[1]) + '/' + pad2(td[2]); closePicker(); });
+            });
+            picker.querySelectorAll('[data-jp="day"]').forEach(function (btn) {
+                btn.addEventListener('click', function () { var d = parseInt(btn.dataset.d); targetInput.value = pad4(curY) + '/' + pad2(curM) + '/' + pad2(d); closePicker(); });
+            });
+            picker.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        }
+
+        function positionPicker(input) {
+            var r = input.getBoundingClientRect();
+            var top = r.bottom + 6;
+            if (top + 320 > window.innerHeight) top = Math.max(8, r.top - 326);
+            var right = window.innerWidth - r.right;
+            if (right + 280 > window.innerWidth) right = 8;
+            picker.style.cssText = 'position:fixed;z-index:10000;top:' + top + 'px;right:' + right + 'px;';
+        }
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function pad4(n) { return String(n).padStart(4, '0'); }
+
+        function closePicker() {
+            if (picker) { picker.remove(); picker = null; }
+            activePicker = null;
+        }
+
+        document.addEventListener('click', function (e) {
+            if (!picker) return;
+            if (!picker.contains(e.target) && !e.target.closest('.jalali-picker-wrap') && !e.target.closest('#open-employee-modal')) closePicker();
         });
 
-        if (modal && modal.dataset.openOnLoad === 'true') {
-            openModal();
-        }
+        document.querySelectorAll('.jalali-picker-wrap').forEach(function (wrap) {
+            var input = wrap.querySelector('input');
+            if (!input) return;
+            function openFor() {
+                if (activePicker === input) return;
+                if (activePicker) closePicker();
+                activePicker = input;
+                buildPicker(input);
+            }
+            input.addEventListener('click', function (e) { e.stopPropagation(); openFor(); });
+            var btn = wrap.querySelector('.jalali-cal-btn');
+            if (btn) btn.addEventListener('click', function (e) { e.stopPropagation(); if (activePicker === input) { closePicker(); } else { openFor(); } });
+        });
     })();
+
 </script>
+
+<style>
+    .jalali-picker-wrap {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .jalali-picker-wrap input {
+        flex: 1;
+    }
+
+    .jalali-cal-btn {
+        background: rgba(5, 120, 255, .12);
+        border: 1px solid rgba(5, 120, 255, .3);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 1rem;
+        color: #60a5fa;
+        transition: background .15s;
+        flex-shrink: 0;
+    }
+
+    .jalali-cal-btn:hover {
+        background: rgba(5, 120, 255, .2);
+    }
+
+    .jp-popup {
+        background: rgba(255, 255, 255, .98);
+        border-radius: 12px;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, .15);
+        padding: 12px;
+        width: 280px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .jp-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .jp-title-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .jp-month {
+        font-weight: 700;
+        font-size: .9rem;
+        color: #1e3a5f;
+    }
+
+    .jp-year {
+        font-size: .8rem;
+        color: #6b7fa3;
+    }
+
+    .jp-arrow {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        color: #0578ff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background .15s;
+    }
+
+    .jp-arrow:hover {
+        background: rgba(5, 120, 255, .1);
+    }
+
+    .jp-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-bottom: 12px;
+    }
+
+    .jp-dow {
+        text-align: center;
+        font-size: .75rem;
+        font-weight: 700;
+        color: #6b7fa3;
+        padding: 6px 0;
+    }
+
+    .jp-day {
+        background: transparent;
+        border: 1px solid rgba(5, 120, 255, .1);
+        border-radius: 6px;
+        padding: 6px;
+        cursor: pointer;
+        font-size: .85rem;
+        color: #1e3a5f;
+        transition: all .15s;
+        aspect-ratio: 1;
+    }
+
+    .jp-day:hover {
+        background: rgba(5, 120, 255, .1);
+        border-color: #0578ff;
+    }
+
+    .jp-day.jp-td {
+        background: rgba(5, 120, 255, .15);
+        border-color: #0578ff;
+        font-weight: 600;
+        color: #0578ff;
+    }
+
+    .jp-foot {
+        text-align: center;
+        padding-top: 8px;
+        border-top: 1px solid rgba(5, 120, 255, .1);
+    }
+
+    .jp-btn-today {
+        background: rgba(5, 120, 255, .12);
+        border: 1px solid rgba(5, 120, 255, .3);
+        border-radius: 8px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: .85rem;
+        color: #0578ff;
+        font-weight: 600;
+        transition: background .15s;
+        letter-spacing: .3px;
+    }
+
+    .jp-btn-today:hover {
+        background: rgba(5, 120, 255, .2);
+    }
+</style>
 {% endblock %}

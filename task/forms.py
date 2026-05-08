@@ -1,10 +1,24 @@
 import re
-from datetime import time
+from datetime import datetime, time
 
 from django import forms
+from django.utils import timezone
 
 from .jalali import normalize_digits, parse_flexible_date
 from .models import LeaveRequest
+
+
+def _parse_time_value(raw_value):
+    text = normalize_digits(raw_value).strip()
+    match = re.fullmatch(r'(\d{1,2}):(\d{1,2})', text)
+    if not match:
+        raise ValueError('فرمت ساعت باید به صورت HH:MM باشد.')
+
+    hour_value, minute_value = map(int, match.groups())
+    if not (0 <= hour_value <= 23 and 0 <= minute_value <= 59):
+        raise ValueError('ساعت واردشده نامعتبر است.')
+
+    return time(hour=hour_value, minute=minute_value)
 
 
 class LeaveRequestForm(forms.ModelForm):
@@ -91,19 +105,6 @@ class LeaveRequestForm(forms.ModelForm):
             'reason': 'توضیحات',
         }
 
-    @staticmethod
-    def _parse_time_value(raw_value):
-        text = normalize_digits(raw_value).strip()
-        match = re.fullmatch(r'(\d{1,2}):(\d{1,2})', text)
-        if not match:
-            raise ValueError('فرمت ساعت باید به صورت HH:MM باشد.')
-
-        hour_value, minute_value = map(int, match.groups())
-        if not (0 <= hour_value <= 23 and 0 <= minute_value <= 59):
-            raise ValueError('ساعت واردشده نامعتبر است.')
-
-        return time(hour=hour_value, minute=minute_value)
-
     def clean(self):
         cleaned = super().clean()
         leave_type = cleaned.get('leave_type')
@@ -139,8 +140,8 @@ class LeaveRequestForm(forms.ModelForm):
                 raise forms.ValidationError(str(exc)) from exc
 
             try:
-                cleaned['start_time'] = self._parse_time_value(start_time_raw)
-                cleaned['end_time'] = self._parse_time_value(end_time_raw)
+                cleaned['start_time'] = _parse_time_value(start_time_raw)
+                cleaned['end_time'] = _parse_time_value(end_time_raw)
             except ValueError as exc:
                 raise forms.ValidationError(str(exc)) from exc
 
@@ -169,3 +170,137 @@ class LeaveRequestForm(forms.ModelForm):
             instance.save()
 
         return instance
+
+
+class AttendanceAddForm(forms.Form):
+    work_date = forms.CharField()
+    start_time = forms.CharField()
+    end_time = forms.CharField()
+    note = forms.CharField(required=False, max_length=255)
+
+    def clean(self):
+        cleaned = super().clean()
+        work_date_raw = cleaned.get('work_date', '')
+        start_time_raw = cleaned.get('start_time', '')
+        end_time_raw = cleaned.get('end_time', '')
+
+        if not work_date_raw or not start_time_raw or not end_time_raw:
+            raise forms.ValidationError('تاریخ و ساعات شروع/پایان باید کامل وارد شوند.')
+
+        try:
+            work_date = parse_flexible_date(work_date_raw)
+            start_clock = _parse_time_value(start_time_raw)
+            end_clock = _parse_time_value(end_time_raw)
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
+        tz = timezone.get_current_timezone()
+        start_dt = timezone.make_aware(datetime.combine(work_date, start_clock), timezone=tz)
+        end_dt = timezone.make_aware(datetime.combine(work_date, end_clock), timezone=tz)
+
+        if end_dt <= start_dt:
+            raise forms.ValidationError('ساعت پایان باید بعد از ساعت شروع باشد.')
+        if int((end_dt - start_dt).total_seconds()) > 24 * 3600:
+            raise forms.ValidationError('مدت تردد نباید بیشتر از ۲۴ ساعت باشد.')
+
+        cleaned['start_datetime'] = start_dt
+        cleaned['end_datetime'] = end_dt
+        cleaned['duration_minutes'] = int((end_dt - start_dt).total_seconds()) // 60
+        cleaned['note'] = (cleaned.get('note') or '').strip()
+        return cleaned
+
+
+class AttendanceEditForm(forms.Form):
+    session_id = forms.IntegerField(widget=forms.HiddenInput())
+    work_date = forms.CharField(
+        label='تاریخ',
+        widget=forms.TextInput(
+            attrs={
+                'class': 'f-input',
+                'placeholder': 'مثال: 1405/02/08',
+                'dir': 'ltr',
+                'inputmode': 'numeric',
+                'autocomplete': 'off',
+            }
+        ),
+    )
+    start_time = forms.CharField(
+        label='ساعت شروع',
+        widget=forms.TextInput(
+            attrs={
+                'class': 'f-input',
+                'placeholder': 'مثال: 08:30',
+                'dir': 'ltr',
+                'inputmode': 'numeric',
+                'autocomplete': 'off',
+            }
+        ),
+    )
+    end_time = forms.CharField(
+        label='ساعت پایان',
+        widget=forms.TextInput(
+            attrs={
+                'class': 'f-input',
+                'placeholder': 'مثال: 17:45',
+                'dir': 'ltr',
+                'inputmode': 'numeric',
+                'autocomplete': 'off',
+            }
+        ),
+    )
+    note = forms.CharField(
+        required=False,
+        max_length=255,
+        label='توضیحات',
+        widget=forms.TextInput(
+            attrs={
+                'class': 'f-input',
+                'placeholder': 'اختیاری',
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        work_date_raw = cleaned.get('work_date', '')
+        start_time_raw = cleaned.get('start_time', '')
+        end_time_raw = cleaned.get('end_time', '')
+
+        if not work_date_raw or not start_time_raw or not end_time_raw:
+            raise forms.ValidationError('تاریخ و ساعات شروع/پایان باید کامل وارد شوند.')
+
+        try:
+            work_date = parse_flexible_date(work_date_raw)
+            start_clock = _parse_time_value(start_time_raw)
+            end_clock = _parse_time_value(end_time_raw)
+        except ValueError as exc:
+            raise forms.ValidationError(str(exc)) from exc
+
+        tz = timezone.get_current_timezone()
+        start_dt = timezone.make_aware(
+            datetime.combine(work_date, start_clock),
+            timezone=tz,
+        )
+        end_dt = timezone.make_aware(
+            datetime.combine(work_date, end_clock),
+            timezone=tz,
+        )
+
+        if end_dt <= start_dt:
+            raise forms.ValidationError('ساعت پایان باید بعد از ساعت شروع باشد.')
+
+        duration_seconds = int((end_dt - start_dt).total_seconds())
+        if duration_seconds > 24 * 3600:
+            raise forms.ValidationError('مدت تردد نباید بیشتر از ۲۴ ساعت باشد.')
+
+        cleaned['start_datetime'] = start_dt
+        cleaned['end_datetime'] = end_dt
+        cleaned['duration_minutes'] = duration_seconds // 60
+        cleaned['work_date_obj'] = work_date
+        cleaned['start_time_obj'] = start_clock
+        cleaned['end_time_obj'] = end_clock
+        cleaned['work_date'] = work_date.strftime('%Y-%m-%d')
+        cleaned['start_time'] = start_clock.strftime('%H:%M')
+        cleaned['end_time'] = end_clock.strftime('%H:%M')
+        cleaned['note'] = (cleaned.get('note') or '').strip()
+        return cleaned

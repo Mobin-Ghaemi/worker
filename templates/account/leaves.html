@@ -4,165 +4,237 @@
 {% block title %}مرخصی‌ها{% endblock %}
 
 {% block content %}
-<section class="glass-card reveal in-view manage-head">
-    <div class="card-head split-head">
-        <div>
-            <p class="kicker">{{ month_label }}</p>
-            <h1>مرخصی‌های من</h1>
-            <p>ثبت مرخصی روزانه یا ساعتی و مشاهده تاریخچه در یک جدول ساده و تمیز.</p>
-        </div>
-        <button type="button" class="btn btn-glow" id="open-leave-form">ثبت مرخصی</button>
+{# ── Nav drawer ── #}
+<div class="page-nav-rail" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-glow">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
     </div>
-</section>
-
-<section class="stat-grid">
-    <article class="stat-card reveal in-view" style="--delay:.05s;">
-        <span>کل درخواست‌ها</span>
-        <strong>{{ total_leave_count }}</strong>
-    </article>
-    <article class="stat-card reveal in-view" style="--delay:.1s;">
-        <span>در انتظار</span>
-        <strong>{{ pending_leave_count }}</strong>
-    </article>
-    <article class="stat-card reveal in-view" style="--delay:.15s;">
-        <span>تایید شده</span>
-        <strong>{{ approved_leave_count }}</strong>
-    </article>
-</section>
-
-<section class="glass-card reveal in-view" style="--delay:.18s;">
-    <div class="hero-chips">
-        <span class="chip">مرخصی روزانه ماه: {{ monthly_leave_days }} روز</span>
-        <span class="chip">مرخصی ساعتی ماه: {{ monthly_hourly_leave }} ساعت</span>
-    </div>
-</section>
-
-<div class="modal-backdrop" id="leave-form-modal" {% if leave_form.errors %}data-open-on-load="true"{% endif %}>
-    <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-form-title">
-        <header class="modal-head">
-            <h2 id="leave-form-title">فرم ثبت مرخصی</h2>
-            <button type="button" class="modal-close" id="close-leave-form" aria-label="بستن">×</button>
-        </header>
-        <div class="modal-body">
-            <form method="post" class="stack" id="leave-request-form">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="leave">
-
-                <label for="{{ leave_form.leave_type.id_for_label }}">{{ leave_form.leave_type.label }}</label>
-                {{ leave_form.leave_type }}
-                {% if leave_form.leave_type.errors %}
-                    <small class="form-error">{{ leave_form.leave_type.errors|striptags }}</small>
-                {% endif %}
-
-                <div id="daily-fields" class="stack">
-                    <label for="{{ leave_form.start_date.id_for_label }}">{{ leave_form.start_date.label }}</label>
-                    {{ leave_form.start_date }}
-                    <small class="form-hint">فرمت قابل قبول: 1405/02/08 (اعداد فارسی یا انگلیسی)</small>
-                    {% if leave_form.start_date.errors %}
-                        <small class="form-error">{{ leave_form.start_date.errors|striptags }}</small>
-                    {% endif %}
-
-                    <label for="{{ leave_form.end_date.id_for_label }}">{{ leave_form.end_date.label }}</label>
-                    {{ leave_form.end_date }}
-                    <small class="form-hint">فرمت قابل قبول: 1405/02/08</small>
-                    {% if leave_form.end_date.errors %}
-                        <small class="form-error">{{ leave_form.end_date.errors|striptags }}</small>
-                    {% endif %}
-                </div>
-
-                <div id="hourly-fields" class="stack">
-                    <label for="{{ leave_form.leave_date.id_for_label }}">{{ leave_form.leave_date.label }}</label>
-                    {{ leave_form.leave_date }}
-                    <small class="form-hint">فرمت قابل قبول: 1405/02/08</small>
-                    {% if leave_form.leave_date.errors %}
-                        <small class="form-error">{{ leave_form.leave_date.errors|striptags }}</small>
-                    {% endif %}
-
-                    <div class="feature-grid compact-grid">
-                        <div class="stack">
-                            <label for="{{ leave_form.start_time.id_for_label }}">{{ leave_form.start_time.label }}</label>
-                            {{ leave_form.start_time }}
-                            <small class="form-hint">فرمت ساعت: HH:MM</small>
-                            {% if leave_form.start_time.errors %}
-                                <small class="form-error">{{ leave_form.start_time.errors|striptags }}</small>
-                            {% endif %}
-                        </div>
-                        <div class="stack">
-                            <label for="{{ leave_form.end_time.id_for_label }}">{{ leave_form.end_time.label }}</label>
-                            {{ leave_form.end_time }}
-                            <small class="form-hint">فرمت ساعت: HH:MM</small>
-                            {% if leave_form.end_time.errors %}
-                                <small class="form-error">{{ leave_form.end_time.errors|striptags }}</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <label for="{{ leave_form.reason.id_for_label }}">{{ leave_form.reason.label }}</label>
-                {{ leave_form.reason }}
-                {% if leave_form.reason.errors %}
-                    <small class="form-error">{{ leave_form.reason.errors|striptags }}</small>
-                {% endif %}
-
-                {% if leave_form.non_field_errors %}
-                    <small class="form-error">{{ leave_form.non_field_errors|striptags }}</small>
-                {% endif %}
-
-                <button type="submit" class="btn btn-glow">ثبت درخواست مرخصی</button>
-            </form>
-        </div>
-    </section>
 </div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
 
-<section class="glass-card reveal in-view" style="--delay:.2s;">
-    <header class="card-head">
-        <h2>جدول مرخصی‌ها</h2>
-    </header>
-    <div class="table-shell">
-        <table>
-            <thead>
-                <tr>
-                    <th>نوع</th>
-                    <th>بازه/زمان</th>
-                    <th>مقدار</th>
-                    <th>وضعیت</th>
-                    <th>توضیحات</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for leave in recent_leaves %}
-                    <tr>
-                        <td>{% if leave.leave_type == 'hourly' %}ساعتی{% else %}روزانه{% endif %}</td>
-                        <td>
-                            {% if leave.leave_type == 'hourly' %}
-                                {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{ leave.end_time|time:'H:i' }}
-                            {% else %}
+<section class="profile-layout">
+    <aside class="profile-sidebar">
+        <article class="side-profile-card reveal in-view page-intro">
+            <div class="profile-identity">
+                {% if request.user.employee_profile.avatar %}
+                <img src="{{ request.user.employee_profile.avatar.url }}" alt="آواتار"
+                    style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--accent,#0578ff);flex-shrink:0;">
+                {% else %}
+                <span class="profile-avatar">{{ request.user.get_full_name|default:request.user.username|slice:':1'
+                    }}</span>
+                {% endif %}
+                <div>
+                    <h2 class="side-profile-title">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                    <p class="side-profile-sub">@{{ request.user.username }}</p>
+                </div>
+            </div>
+            <div class="side-badges">
+                <span class="chip">{{ month_label }}</span>
+            </div>
+        </article>
+    </aside>
+
+    <div class="profile-main">
+
+        <section class="glass-card reveal in-view manage-head page-intro">
+            <div class="card-head split-head">
+                <div>
+                    <p class="kicker">{{ month_label }}</p>
+                    <h1>مرخصی‌های من</h1>
+                    <p>ثبت مرخصی روزانه یا ساعتی و مشاهده تاریخچه در یک جدول ساده و تمیز.</p>
+                </div>
+                <button type="button" class="btn btn-glow" id="open-leave-form">ثبت مرخصی</button>
+            </div>
+        </section>
+
+        <section class="stat-grid">
+            <article class="stat-card reveal in-view" style="--delay:.05s;">
+                <span>کل درخواست‌ها</span>
+                <strong>{{ total_leave_count }}</strong>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.1s;">
+                <span>در انتظار</span>
+                <strong>{{ pending_leave_count }}</strong>
+            </article>
+            <article class="stat-card reveal in-view" style="--delay:.15s;">
+                <span>تایید شده</span>
+                <strong>{{ approved_leave_count }}</strong>
+            </article>
+        </section>
+
+        <section class="glass-card reveal in-view" style="--delay:.18s;">
+            <div class="hero-chips">
+                <span class="chip">مرخصی روزانه ماه: {{ monthly_leave_days }} روز</span>
+                <span class="chip">مرخصی ساعتی ماه: {{ monthly_hourly_leave }} ساعت</span>
+            </div>
+        </section>
+
+        <div class="modal-backdrop" id="leave-form-modal" {% if leave_form.errors %}data-open-on-load="true" {% endif
+            %}>
+            <section class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-form-title">
+                <header class="modal-head">
+                    <h2 id="leave-form-title">فرم ثبت مرخصی</h2>
+                    <button type="button" class="modal-close" id="close-leave-form" aria-label="بستن">×</button>
+                </header>
+                <div class="modal-body">
+                    <form method="post" class="stack" id="leave-request-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="leave">
+
+                        <label for="{{ leave_form.leave_type.id_for_label }}">{{ leave_form.leave_type.label }}</label>
+                        {{ leave_form.leave_type }}
+                        {% if leave_form.leave_type.errors %}
+                        <small class="form-error">{{ leave_form.leave_type.errors|striptags }}</small>
+                        {% endif %}
+
+                        <div id="daily-fields" class="stack">
+                            <label for="{{ leave_form.start_date.id_for_label }}">{{ leave_form.start_date.label
+                                }}</label>
+                            <div class="jalali-picker-wrap">
+                                {{ leave_form.start_date }}
+                                <button type="button" class="jalali-cal-btn"
+                                    data-target="{{ leave_form.start_date.id_for_label }}"
+                                    title="انتخاب از تقویم">📅</button>
+                            </div>
+                            {% if leave_form.start_date.errors %}
+                            <small class="form-error">{{ leave_form.start_date.errors|striptags }}</small>
+                            {% endif %}
+
+                            <label for="{{ leave_form.end_date.id_for_label }}">{{ leave_form.end_date.label }}</label>
+                            <div class="jalali-picker-wrap">
+                                {{ leave_form.end_date }}
+                                <button type="button" class="jalali-cal-btn"
+                                    data-target="{{ leave_form.end_date.id_for_label }}"
+                                    title="انتخاب از تقویم">📅</button>
+                            </div>
+                            {% if leave_form.end_date.errors %}
+                            <small class="form-error">{{ leave_form.end_date.errors|striptags }}</small>
+                            {% endif %}
+                        </div>
+
+                        <div id="hourly-fields" class="stack">
+                            <label for="{{ leave_form.leave_date.id_for_label }}">{{ leave_form.leave_date.label
+                                }}</label>
+                            <div class="jalali-picker-wrap">
+                                {{ leave_form.leave_date }}
+                                <button type="button" class="jalali-cal-btn"
+                                    data-target="{{ leave_form.leave_date.id_for_label }}"
+                                    title="انتخاب از تقویم">📅</button>
+                            </div>
+                            {% if leave_form.leave_date.errors %}
+                            <small class="form-error">{{ leave_form.leave_date.errors|striptags }}</small>
+                            {% endif %}
+
+                            <div class="feature-grid compact-grid">
+                                <div class="stack">
+                                    <label for="{{ leave_form.start_time.id_for_label }}">{{ leave_form.start_time.label
+                                        }}</label>
+                                    {{ leave_form.start_time }}
+                                    <small class="form-hint">فرمت ساعت: HH:MM</small>
+                                    {% if leave_form.start_time.errors %}
+                                    <small class="form-error">{{ leave_form.start_time.errors|striptags }}</small>
+                                    {% endif %}
+                                </div>
+                                <div class="stack">
+                                    <label for="{{ leave_form.end_time.id_for_label }}">{{ leave_form.end_time.label
+                                        }}</label>
+                                    {{ leave_form.end_time }}
+                                    <small class="form-hint">فرمت ساعت: HH:MM</small>
+                                    {% if leave_form.end_time.errors %}
+                                    <small class="form-error">{{ leave_form.end_time.errors|striptags }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <label for="{{ leave_form.reason.id_for_label }}">{{ leave_form.reason.label }}</label>
+                        {{ leave_form.reason }}
+                        {% if leave_form.reason.errors %}
+                        <small class="form-error">{{ leave_form.reason.errors|striptags }}</small>
+                        {% endif %}
+
+                        {% if leave_form.non_field_errors %}
+                        <small class="form-error">{{ leave_form.non_field_errors|striptags }}</small>
+                        {% endif %}
+
+                        <button type="submit" class="btn btn-glow">ثبت درخواست مرخصی</button>
+                    </form>
+                </div>
+            </section>
+        </div>
+
+        <section class="glass-card reveal in-view" style="--delay:.2s;">
+            <header class="card-head">
+                <h2>جدول مرخصی‌ها</h2>
+            </header>
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>نوع</th>
+                            <th>بازه/زمان</th>
+                            <th>مقدار</th>
+                            <th>وضعیت</th>
+                            <th>توضیحات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for leave in recent_leaves %}
+                        <tr>
+                            <td>{% if leave.leave_type == 'hourly' %}ساعتی{% else %}روزانه{% endif %}</td>
+                            <td>
+                                {% if leave.leave_type == 'hourly' %}
+                                {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{
+                                leave.end_time|time:'H:i' }}
+                                {% else %}
                                 {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if leave.leave_type == 'hourly' %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if leave.leave_type == 'hourly' %}
                                 {{ leave.hours_count }} ساعت
-                            {% else %}
+                                {% else %}
                                 {{ leave.days_count }} روز
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if leave.status == 'approved' %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if leave.status == 'approved' %}
                                 <span class="pill approved">تایید شده</span>
-                            {% elif leave.status == 'rejected' %}
+                                {% elif leave.status == 'rejected' %}
                                 <span class="pill rejected">رد شده</span>
-                            {% else %}
+                                {% else %}
                                 <span class="pill pending">در انتظار</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ leave.reason|default:'-' }}</td>
-                    </tr>
-                {% empty %}
-                    <tr><td colspan="5">مرخصی ثبت نشده است.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                                {% endif %}
+                            </td>
+                            <td>{{ leave.reason|default:'-' }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">مرخصی ثبت نشده است.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
     </div>
 </section>
 
@@ -189,13 +261,8 @@
         }
 
         function openModal() {
-            if (!formModal) {
-                return;
-            }
-            if (closeTimer) {
-                clearTimeout(closeTimer);
-                closeTimer = null;
-            }
+            if (!formModal) { return; }
+            if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
             formModal.classList.remove('closing');
             if (!prefersReducedMotion) {
                 formModal.classList.remove('opening');
@@ -205,25 +272,17 @@
             formModal.classList.add('open');
             document.body.style.overflow = 'hidden';
             const firstInput = formModal.querySelector('select, input, textarea');
-            if (firstInput) {
-                firstInput.focus();
-            }
+            if (firstInput) { firstInput.focus(); }
             if (!prefersReducedMotion) {
-                setTimeout(function () {
-                    formModal.classList.remove('opening');
-                }, 520);
+                setTimeout(function () { formModal.classList.remove('opening'); }, 520);
             }
         }
 
         function closeModal() {
-            if (!formModal || !formModal.classList.contains('open')) {
-                return;
-            }
+            if (!formModal || !formModal.classList.contains('open')) { return; }
             formModal.classList.remove('opening');
             formModal.classList.add('closing');
-            if (closeTimer) {
-                clearTimeout(closeTimer);
-            }
+            if (closeTimer) { clearTimeout(closeTimer); }
             closeTimer = setTimeout(function () {
                 formModal.classList.remove('open');
                 formModal.classList.remove('closing');
@@ -232,31 +291,372 @@
             }, MODAL_CLOSE_MS);
         }
 
-        if (openBtn) {
-            openBtn.addEventListener('click', openModal);
-        }
-
-        if (closeBtn) {
-            closeBtn.addEventListener('click', closeModal);
-        }
-
+        if (openBtn) { openBtn.addEventListener('click', openModal); }
+        if (closeBtn) { closeBtn.addEventListener('click', closeModal); }
         if (formModal) {
             formModal.addEventListener('click', function (event) {
-                if (event.target === formModal) {
-                    closeModal();
-                }
+                if (event.target === formModal) { closeModal(); }
             });
         }
-
         window.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                closeModal();
+            if (event.key === 'Escape') { closeModal(); }
+        });
+        if (formModal && formModal.dataset.openOnLoad === 'true') { openModal(); }
+    })();
+
+    /* ─── Jalali Calendar Picker ─── */
+    (function () {
+        var MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        var DAYS = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
+
+        // Algorithmic Jalali ↔ Gregorian (Borkowski)
+        function jalaliToJulianDay(jy, jm, jd) {
+            var epbase = jy - (jy >= 0 ? 474 : 473);
+            var epyear = 474 + (epbase % 2820);
+            return jd
+                + (jm <= 6 ? (jm - 1) * 31 : (jm - 1) * 30 + 6)
+                + Math.floor((epyear * 682 - 110) / 2816)
+                + (epyear - 1) * 365
+                + Math.floor(epbase / 2820) * 1029983
+                + 1948319.5;
+        }
+
+        function julianDayToGregorian(jdn) {
+            var j = Math.floor(jdn) + 32044;
+            var g = Math.floor((4 * j + 3) / 146097);
+            var dg = j - Math.floor(146097 * g / 4);
+            var c = Math.floor((4 * dg + 3) / 1461);
+            var dc = dg - Math.floor(1461 * c / 4);
+            var b = Math.floor((5 * dc + 2) / 153);
+            var db = dc - Math.floor((153 * b + 2) / 5);
+            var gd = db + 1;
+            var gm = b + 3 - 12 * Math.floor(b / 10);
+            var gy = 100 * g + c - 4800 + Math.floor(b / 10);
+            return [gy, gm, gd];
+        }
+
+        function toGregorian(jy, jm, jd) {
+            return julianDayToGregorian(jalaliToJulianDay(jy, jm, jd));
+        }
+
+        function toJalali(gy, gm, gd) {
+            var jdn = Math.floor(
+                (1461 * (gy + 4800 + Math.floor((gm - 14) / 12))) / 4
+                + Math.floor((367 * (gm - 2 - 12 * Math.floor((gm - 14) / 12))) / 12)
+                - Math.floor((3 * (Math.floor((gy + 4900 + Math.floor((gm - 14) / 12)) / 100))) / 4)
+                + gd - 32075
+            ) - 0.5;
+            var depoch = jdn - jalaliToJulianDay(475, 1, 1);
+            var cycle = Math.floor(depoch / 1029983);
+            var cyear = depoch % 1029983;
+            var ycycle;
+            if (cyear === 1029982) { ycycle = 2820; }
+            else {
+                var aux1 = Math.floor(cyear / 366), aux2 = cyear % 366;
+                ycycle = Math.floor((2134 * aux1 + 2816 * aux2 + 2815) / 1028522) + aux1 + 1;
             }
+            var jy = ycycle + 2820 * cycle + 474;
+            if (jy <= 0) jy--;
+            var yday = jdn - jalaliToJulianDay(jy, 1, 1) + 1;
+            var jm = (yday <= 186) ? Math.ceil(yday / 31) : Math.ceil((yday - 6) / 30);
+            var jd2 = jdn - jalaliToJulianDay(jy, jm, 1) + 1;
+            return [jy, jm, jd2];
+        }
+
+        function monthLen(jy, jm) {
+            var g1 = toGregorian(jy, jm, 1);
+            var nextM = jm === 12 ? [jy + 1, 1, 1] : [jy, jm + 1, 1];
+            var d1 = new Date(g1[0], g1[1] - 1, g1[2]);
+            var d2 = new Date(nextM[0] > jy ? nextM[0] : jy, nextM[1] - 1, nextM[2]);
+            // use simple formula: months 1-6 = 31, 7-11 = 30, 12 = 29 or 30
+            if (jm <= 6) return 31;
+            if (jm <= 11) return 30;
+            // check leap: if next year's Farvardin 1 minus this Esfand 1 = 30
+            var esfand1 = new Date(...toGregorian(jy, 12, 1).map((v, i) => i === 1 ? v - 1 : v));
+            var farvardin1 = new Date(...toGregorian(jy + 1, 1, 1).map((v, i) => i === 1 ? v - 1 : v));
+            return Math.round((farvardin1 - esfand1) / (86400000)) === 30 ? 30 : 29;
+        }
+
+        function firstWeekday(jy, jm) {
+            // 0=Sat,1=Sun,...,6=Fri
+            var g = toGregorian(jy, jm, 1);
+            var dow = new Date(g[0], g[1] - 1, g[2]).getDay(); // 0=Sun
+            return (dow + 1) % 7; // shift: Sat=0
+        }
+
+        function todayJalali() {
+            var n = new Date();
+            return toJalali(n.getFullYear(), n.getMonth() + 1, n.getDate());
+        }
+
+        var activePicker = null;
+        var picker = null;
+        var curY, curM;
+
+        function buildPicker(targetInput) {
+            if (picker) picker.remove();
+            var today = todayJalali();
+            var selVal = (targetInput.value || '').replace(/[۰-۹]/g, function (c) { return c.charCodeAt(0) - 1728; }).replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 1584; });
+            var parts = selVal.split('/');
+            curY = parseInt(parts[0]) || today[0];
+            curM = parseInt(parts[1]) || today[1];
+            if (isNaN(curY) || curY < 1300) curY = today[0];
+            if (isNaN(curM) || curM < 1 || curM > 12) curM = today[1];
+
+            picker = document.createElement('div');
+            picker.className = 'jp-popup';
+            renderInto(picker, curY, curM, today);
+            document.body.appendChild(picker);
+            positionPicker(targetInput);
+
+            picker.addEventListener('click', function (e) {
+                var btn = e.target.closest('[data-jp]');
+                if (!btn) return;
+                e.stopPropagation();
+                var action = btn.dataset.jp;
+                if (action === 'prev') { curM--; if (curM < 1) { curM = 12; curY--; } renderInto(picker, curY, curM, today); }
+                else if (action === 'next') { curM++; if (curM > 12) { curM = 1; curY++; } renderInto(picker, curY, curM, today); }
+                else if (action === 'today') {
+                    curY = today[0]; curM = today[1]; renderInto(picker, curY, curM, today);
+                    targetInput.value = pad4(today[0]) + '/' + pad2(today[1]) + '/' + pad2(today[2]);
+                    closePicker();
+                }
+                else if (action === 'day') {
+                    var d = parseInt(btn.dataset.d);
+                    targetInput.value = pad4(curY) + '/' + pad2(curM) + '/' + pad2(d);
+                    closePicker();
+                }
+            });
+
+            picker.addEventListener('mousedown', function (e) { e.preventDefault(); });
+        }
+
+        function positionPicker(input) {
+            var r = input.getBoundingClientRect();
+            var top = r.bottom + 6;
+            if (top + 320 > window.innerHeight) top = Math.max(8, r.top - 326);
+            var right = window.innerWidth - r.right;
+            if (right + 280 > window.innerWidth) right = 8;
+            picker.style.cssText = 'position:fixed;z-index:10000;top:' + top + 'px;right:' + right + 'px;';
+        }
+
+        function renderInto(el, jy, jm, today) {
+            var len = monthLen(jy, jm);
+            var fw = firstWeekday(jy, jm);
+            var h = '';
+
+            // Header
+            h += '<div class="jp-head">';
+            h += '<button type="button" data-jp="next" class="jp-arrow">&#8249;</button>';
+            h += '<div class="jp-title-block"><span class="jp-month">' + MONTHS[jm - 1] + '</span><span class="jp-year">' + jy + '</span></div>';
+            h += '<button type="button" data-jp="prev" class="jp-arrow">&#8250;</button>';
+            h += '</div>';
+
+            // Day headers
+            h += '<div class="jp-grid">';
+            for (var i = 0; i < 7; i++) h += '<div class="jp-dow">' + DAYS[i] + '</div>';
+
+            // Empty cells
+            for (var e = 0; e < fw; e++) h += '<div></div>';
+
+            // Days
+            for (var d = 1; d <= len; d++) {
+                var isTd = (jy === today[0] && jm === today[1] && d === today[2]);
+                h += '<button type="button" data-jp="day" data-d="' + d + '" class="jp-day' + (isTd ? ' jp-td' : '') + '">' + d + '</button>';
+            }
+            h += '</div>';
+
+            // Footer
+            h += '<div class="jp-foot"><button type="button" data-jp="today" class="jp-btn-today">📅 امروز</button></div>';
+
+            el.innerHTML = h;
+        }
+
+        function pad2(n) { return String(n).padStart(2, '0'); }
+        function pad4(n) { return String(n).padStart(4, '0'); }
+
+        function closePicker() {
+            if (picker) { picker.remove(); picker = null; }
+            activePicker = null;
+        }
+
+        document.addEventListener('click', function (e) {
+            if (!picker) return;
+            if (!picker.contains(e.target) && !e.target.closest('.jalali-picker-wrap')) closePicker();
         });
 
-        if (formModal && formModal.dataset.openOnLoad === 'true') {
-            openModal();
-        }
+        document.querySelectorAll('.jalali-picker-wrap').forEach(function (wrap) {
+            var input = wrap.querySelector('input');
+            if (!input) return;
+            function openFor() {
+                if (activePicker === input) return;
+                if (activePicker) closePicker();
+                activePicker = input;
+                buildPicker(input);
+            }
+            input.addEventListener('click', function (e) { e.stopPropagation(); openFor(); });
+            input.addEventListener('focus', function () { openFor(); });
+            var btn = wrap.querySelector('.jalali-cal-btn');
+            if (btn) btn.addEventListener('click', function (e) { e.stopPropagation(); if (activePicker === input) { closePicker(); } else { openFor(); } });
+        });
     })();
 </script>
+
+<style>
+    .jalali-picker-wrap {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .jalali-picker-wrap input {
+        flex: 1;
+    }
+
+    .jalali-cal-btn {
+        background: rgba(5, 120, 255, .12);
+        border: 1px solid rgba(5, 120, 255, .3);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 1rem;
+        color: #60a5fa;
+        transition: background .15s;
+        flex-shrink: 0;
+    }
+
+    .jalali-cal-btn:hover {
+        background: rgba(5, 120, 255, .25);
+    }
+
+    /* Popup */
+    .jp-popup {
+        background: #1a2236;
+        border: 1px solid rgba(255, 255, 255, .12);
+        border-radius: 16px;
+        padding: 14px;
+        width: 288px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, .6);
+        direction: rtl;
+        font-family: inherit;
+        user-select: none;
+    }
+
+    /* Header */
+    .jp-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .jp-title-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+    }
+
+    .jp-month {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #f1f5f9;
+    }
+
+    .jp-year {
+        font-size: .78rem;
+        color: #60a5fa;
+    }
+
+    .jp-arrow {
+        background: rgba(255, 255, 255, .06);
+        border: 1px solid rgba(255, 255, 255, .1);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #60a5fa;
+        font-size: 1.3rem;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background .15s;
+    }
+
+    .jp-arrow:hover {
+        background: rgba(5, 120, 255, .25);
+        color: #fff;
+    }
+
+    /* Grid */
+    .jp-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+    }
+
+    .jp-dow {
+        text-align: center;
+        font-size: .68rem;
+        color: #64748b;
+        padding: 4px 0 6px;
+        font-weight: 600;
+    }
+
+    .jp-day {
+        background: none;
+        border: none;
+        border-radius: 8px;
+        padding: 7px 3px;
+        font-size: .85rem;
+        color: #cbd5e1;
+        text-align: center;
+        cursor: pointer;
+        transition: background .1s, color .1s;
+        line-height: 1;
+    }
+
+    .jp-day:hover {
+        background: rgba(5, 120, 255, .35);
+        color: #fff;
+    }
+
+    .jp-td {
+        background: rgba(5, 120, 255, .18);
+        color: #60a5fa;
+        font-weight: 700;
+        border: 1.5px solid #0578ff;
+        border-radius: 8px;
+    }
+
+    .jp-td:hover {
+        background: #0578ff;
+        color: #fff;
+    }
+
+    /* Footer */
+    .jp-foot {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .jp-btn-today {
+        background: linear-gradient(135deg, #0578ff, #00b4d8);
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        padding: 7px 24px;
+        cursor: pointer;
+        font-size: .85rem;
+        font-weight: 700;
+        font-family: inherit;
+        letter-spacing: .3px;
+        transition: opacity .15s;
+    }
+
+    .jp-btn-today:hover {
+        opacity: .85;
+    }
+</style>
 {% endblock %}

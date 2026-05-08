@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block title %}چت{% endblock %}
+
+{% block content %}
+
+{# ── Nav drawer (fixed, outside chat box) ── #}
+<div class="page-nav-rail" id="chat-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-glow">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="chat-nav-backdrop"></div>
+
+<section class="chat-layout-page">
+
+    <div class="chat-sidebar-panel">
+        <div class="chat-sidebar-head">
+            <h2>پیام‌رسان</h2>
+        </div>
+
+        <div class="chat-search-wrap">
+            <input type="text" id="chat-search" class="f-input" placeholder="جستجو..." autocomplete="off">
+        </div>
+
+        <ul class="chat-user-list" id="chat-user-list">
+            {% for item in users_data %}
+            <li class="chat-user-row {% if item.unread %}has-unread{% endif %}"
+                data-name="{{ item.user.get_full_name|default:item.user.username|lower }}"
+                data-uid="{{ item.user.pk }}">
+                <a href="{% url 'account:chat_with' item.user.pk %}">
+                    <span class="chat-avatar-wrap">
+                        {% if item.user.employee_profile.avatar %}<img src="{{ item.user.employee_profile.avatar.url }}"
+                            class="chat-avatar" style="border-radius:50%;object-fit:cover;">{% else %}<span
+                            class="chat-avatar">{{ item.user.get_full_name|default:item.user.username|slice:':1'
+                            }}</span>{% endif %}
+                        {% if item.is_online %}<span class="chat-online-dot"></span>{% endif %}
+                    </span>
+                    <div class="chat-user-info">
+                        <strong>{{ item.user.get_full_name|default:item.user.username }}</strong>
+                        <span class="chat-last-preview">
+                            {% if item.last_msg %}
+                            {% if item.last_msg.file_type == 'image' %}📷 تصویر
+                            {% elif item.last_msg.file_type == 'file' %}📎 فایل
+                            {% else %}{{ item.last_msg.content|truncatechars:35 }}
+                            {% endif %}
+                            {% else %}شروع مکالمه...{% endif %}
+                        </span>
+                    </div>
+                    {% if item.unread %}
+                    <span class="chat-unread-badge">{{ item.unread }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            {% empty %}
+            <li class="chat-empty-users">هنوز کاربری ثبت نشده.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="chat-main-panel chat-select-state">
+        <div class="chat-header" style="visibility:hidden;"></div>
+        <div class="chat-messages" style="align-items:center;justify-content:center;">
+            <div
+                style="text-align:center;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:14px;">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#c8d8ee" stroke-width="1.2"
+                    stroke-linecap="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <p style="font-size:.92rem;margin:0;">یک مکالمه انتخاب کنید</p>
+                <p style="font-size:.78rem;margin:0;">برای ارسال متن، عکس یا فایل</p>
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <span class="chat-attach-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <path
+                        d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+            </span>
+            <div class="chat-input-box-wrap">
+                <textarea class="chat-textarea" placeholder="پیام بنویسید..." disabled></textarea>
+            </div>
+            <button class="chat-send-btn" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<script>
+    document.getElementById('chat-search').addEventListener('input', function () {
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('.chat-user-row').forEach(function (li) {
+            li.style.display = li.dataset.name.includes(q) ? '' : 'none';
+        });
+    });
+
+    // Dynamic unread badges
+    (function () {
+        var UNREAD_URL = '{% url "account:chat_unread_per_user" %}';
+        function updateBadges() {
+            fetch(UNREAD_URL)
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    document.querySelectorAll('.chat-user-row[data-uid]').forEach(function (li) {
+                        var uid = li.dataset.uid;
+                        var count = data[uid] || 0;
+                        var badge = li.querySelector('.chat-unread-badge');
+                        if (count > 0) {
+                            li.classList.add('has-unread');
+                            if (!badge) {
+                                badge = document.createElement('span');
+                                badge.className = 'chat-unread-badge';
+                                li.querySelector('a').appendChild(badge);
+                            }
+                            badge.textContent = count;
+                        } else {
+                            li.classList.remove('has-unread');
+                            if (badge) badge.remove();
+                        }
+                    });
+                }).catch(function () { });
+        }
+        updateBadges();
+        setInterval(updateBadges, 5000);
+    })();
+</script>
+{% endblock %}

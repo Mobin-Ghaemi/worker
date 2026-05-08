@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% block title %}چت با {{ other.get_full_name|default:other.username }}{% endblock %}
+
+{% block content %}
+
+{# ── Nav drawer (fixed, outside chat box) ── #}
+<div class="page-nav-rail open" id="chat-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-outline">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-glow">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="chat-nav-backdrop"></div>
+
+<section class="chat-layout-page">
+
+    {# ── Sidebar ── #}
+    <div class="chat-sidebar-panel">
+        <div class="chat-sidebar-head">
+            <h2>پیام‌رسان</h2>
+        </div>
+        <div class="chat-search-wrap">
+            <input type="text" id="chat-search" class="f-input" placeholder="جستجو..." autocomplete="off">
+        </div>
+        <ul class="chat-user-list" id="chat-user-list">
+            {% for item in sidebar_users %}
+            <li class="chat-user-row {% if item.unread %}has-unread{% endif %} {% if item.active %}chat-row-active{% endif %}"
+                data-name="{{ item.user.get_full_name|default:item.user.username|lower }}"
+                data-uid="{{ item.user.pk }}">
+                <a href="{% url 'account:chat_with' item.user.pk %}">
+                    <span class="chat-avatar-wrap">
+                        {% if item.user.employee_profile.avatar %}<img src="{{ item.user.employee_profile.avatar.url }}"
+                            class="chat-avatar" style="border-radius:50%;object-fit:cover;">{% else %}<span
+                            class="chat-avatar">{{ item.user.get_full_name|default:item.user.username|slice:':1'
+                            }}</span>{% endif %}
+                        {% if item.is_online %}<span class="chat-online-dot"></span>{% endif %}
+                    </span>
+                    <div class="chat-user-info">
+                        <strong>{{ item.user.get_full_name|default:item.user.username }}</strong>
+                        {% if item.active %}
+                        <span class="chat-last-preview" style="color:#0578ff;">در حال مکالمه...</span>
+                        {% endif %}
+                    </div>
+                    {% if item.unread %}
+                    <span class="chat-unread-badge">{{ item.unread }}</span>
+                    {% endif %}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    {# ── Main chat area ── #}
+    <div class="chat-main-panel">
+
+        {# Header #}
+        <div class="chat-header">
+            <span class="chat-avatar-wrap chat-avatar-wrap-lg">
+                {% if other_profile_avatar %}<img src="{{ other_profile_avatar }}" class="chat-avatar chat-avatar-lg"
+                    style="border-radius:50%;object-fit:cover;">{% else %}<span class="chat-avatar chat-avatar-lg">{{
+                    other.get_full_name|default:other.username|slice:':1' }}</span>{% endif %}
+                {% if other_online %}<span class="chat-online-dot"></span>{% endif %}
+            </span>
+            <div class="chat-header-info">
+                <strong>{{ other.get_full_name|default:other.username }}</strong>
+                <span class="chat-status-text" id="chat-status-text">
+                    {% if other_online %}<span class="chat-status-dot online"></span> آنلاین{% else %}<span
+                        class="chat-status-dot"></span> آفلاین{% endif %}
+                </span>
+            </div>
+        </div>
+
+        {# Messages #}
+        <div class="chat-messages" id="chat-messages">
+            {% for msg in messages_qs %}
+            <div class="chat-bubble-wrap {% if msg.sender == request.user %}mine{% else %}theirs{% endif %}"
+                data-id="{{ msg.pk }}">
+                <div class="chat-bubble">
+                    {% if msg.file_type == 'image' %}
+                    <a href="{{ msg.file.url }}" target="_blank" class="chat-img-link">
+                        <img src="{{ msg.file.url }}" alt="{{ msg.file_name }}" class="chat-img">
+                    </a>
+                    {% elif msg.file_type == 'file' %}
+                    <a href="{{ msg.file.url }}" download="{{ msg.file_name }}" class="chat-file-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                        {{ msg.file_name }}
+                    </a>
+                    {% endif %}
+                    {% if msg.content %}<p>{{ msg.content }}</p>{% endif %}
+                    <span class="chat-time">
+                        {{ msg.created_at|time:"H:i" }}
+                        {% if msg.sender == request.user %}
+                        <span class="chat-tick" data-id="{{ msg.pk }}">
+                            {% if msg.is_read %}
+                            <svg class="tick-icon tick-read" width="20" height="10" viewBox="0 0 20 10" fill="none">
+                                <path d="M1 5l3.5 3.5L12 1" stroke="#22c55e" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M8 5l3.5 3.5L19 1" stroke="#22c55e" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                            {% else %}
+                            <svg class="tick-icon tick-sent" width="14" height="10" viewBox="0 0 14 10" fill="none">
+                                <path d="M1 5l3.5 3.5L13 1" stroke="rgba(255,255,255,0.6)" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            {% empty %}
+            <div class="chat-start-hint">شروع مکالمه 👋</div>
+            {% endfor %}
+        </div>
+
+        {# Input #}
+        <div class="chat-input-area">
+            <label class="chat-attach-btn" for="chat-file-input" title="پیوست فایل">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <path
+                        d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                <input type="file" id="chat-file-input" style="display:none;" accept="*/*">
+            </label>
+            <div class="chat-input-box-wrap">
+                <div id="chat-file-preview" class="chat-file-preview" style="display:none;"></div>
+                <textarea id="chat-text" class="chat-textarea" placeholder="پیام بنویسید..." rows="1"
+                    dir="auto"></textarea>
+            </div>
+            <button type="button" class="chat-send-btn" id="chat-send-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+            </button>
+        </div>
+    </div>
+</section>
+
+<script>
+    (function () {
+        var SEND_URL = '{% url "account:chat_send" other.pk %}';
+        var POLL_URL = '{% url "account:chat_poll" other.pk %}';
+        var UNREAD_URL = '{% url "account:chat_unread_per_user" %}';
+        var CSRF = '{{ csrf_token }}';
+        var ME_ID = {{ request.user.pk }
+    };
+
+    var messagesEl = document.getElementById('chat-messages');
+    var textarea = document.getElementById('chat-text');
+    var sendBtn = document.getElementById('chat-send-btn');
+    var fileInput = document.getElementById('chat-file-input');
+    var filePreview = document.getElementById('chat-file-preview');
+    var statusText = document.getElementById('chat-status-text');
+
+    // Last message pk for polling
+    var lastId = 0;
+    var allBubbles = messagesEl.querySelectorAll('.chat-bubble-wrap[data-id]');
+    if (allBubbles.length) lastId = parseInt(allBubbles[allBubbles.length - 1].dataset.id);
+
+    // Scroll to bottom
+    function scrollBottom() {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+    // On load: instant scroll (no animation) to last message
+    messagesEl.style.scrollBehavior = 'auto';
+    scrollBottom();
+    // After load restore smooth scroll
+    setTimeout(function () { messagesEl.style.scrollBehavior = 'smooth'; }, 100);
+
+    // Auto-resize textarea
+    textarea.addEventListener('input', function () {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // File preview
+    var selectedFile = null;
+    fileInput.addEventListener('change', function () {
+        selectedFile = this.files[0] || null;
+        if (!selectedFile) { filePreview.style.display = 'none'; return; }
+        filePreview.style.display = 'flex';
+        filePreview.innerHTML =
+            '<span class="fp-name">' + selectedFile.name + '</span>' +
+            '<button type="button" class="fp-remove">✕</button>';
+        filePreview.querySelector('.fp-remove').addEventListener('click', function () {
+            selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none';
+        });
+    });
+
+    function appendBubble(data) {
+        var wrap = document.createElement('div');
+        wrap.className = 'chat-bubble-wrap ' + (data.mine ? 'mine' : 'theirs');
+        wrap.dataset.id = data.id;
+
+        var bubble = '<div class="chat-bubble">';
+        if (data.file_type === 'image') {
+            bubble += '<a href="' + data.file_url + '" target="_blank" class="chat-img-link"><img src="' + data.file_url + '" class="chat-img"></a>';
+        } else if (data.file_type === 'file') {
+            bubble += '<a href="' + data.file_url + '" download="' + data.file_name + '" class="chat-file-link">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ' +
+                data.file_name + '</a>';
+        }
+        if (data.content) bubble += '<p>' + data.content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>';
+        var tickHtml = '';
+        if (data.mine) {
+            if (data.pending) {
+                tickHtml = '<svg class="tick-icon tick-pending" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+            } else {
+                tickHtml = '<svg class="tick-icon tick-sent"  width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M1 5l3.5 3.5L13 1" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+        }
+        bubble += '<span class="chat-time">' + data.created_at + (tickHtml ? ' <span class="chat-tick" data-id="' + data.id + '">' + tickHtml + '</span>' : '') + '</span></div>';
+
+        wrap.innerHTML = bubble;
+
+        // Remove start hint
+        var hint = messagesEl.querySelector('.chat-start-hint');
+        if (hint) hint.remove();
+
+        messagesEl.appendChild(wrap);
+        if (data.id > lastId) lastId = data.id;
+        scrollBottom();
+    }
+
+    function doSend() {
+        var content = textarea.value.trim();
+        if (!content && !selectedFile) return;
+
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', CSRF);
+        if (content) fd.append('content', content);
+        if (selectedFile) fd.append('file', selectedFile);
+
+        textarea.value = ''; textarea.style.height = 'auto';
+        selectedFile = null; fileInput.value = ''; filePreview.style.display = 'none';
+
+        sendBtn.disabled = true;
+        fetch(SEND_URL, { method: 'POST', body: fd })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    data.pending = false;
+                    appendBubble(data);
+                }
+            })
+            .finally(function () { sendBtn.disabled = false; });
+    }
+
+    sendBtn.addEventListener('click', doSend);
+    textarea.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+    });
+
+    var TICK_READ_SVG = '<svg class="tick-icon tick-read" width="20" height="10" viewBox="0 0 20 10" fill="none"><path d="M1 5l3.5 3.5L12 1" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 5l3.5 3.5L19 1" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var TICK_SENT_SVG = '<svg class="tick-icon tick-sent"  width="14" height="10" viewBox="0 0 14 10" fill="none"><path d="M1 5l3.5 3.5L13 1" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    function updateTicks(readIds) {
+        var readSet = new Set(readIds.map(String));
+        document.querySelectorAll('.chat-tick[data-id]').forEach(function (el) {
+            el.innerHTML = readSet.has(el.dataset.id) ? TICK_READ_SVG : TICK_SENT_SVG;
+        });
+    }
+
+    // Polling every 3 seconds
+    function poll() {
+        fetch(POLL_URL + '?after=' + lastId)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                data.messages.forEach(appendBubble);
+                if (data.read_ids) updateTicks(data.read_ids);
+                // Update online status
+                statusText.innerHTML = data.other_online
+                    ? '<span class="chat-status-dot online"></span> آنلاین'
+                    : '<span class="chat-status-dot"></span> آفلاین';
+            })
+            .catch(function () { });
+    }
+    setInterval(poll, 3000);
+
+    // Dynamic sidebar unread badges
+    function updateSidebarBadges() {
+        fetch(UNREAD_URL)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                document.querySelectorAll('.chat-user-row[data-uid]').forEach(function (li) {
+                    var uid = li.dataset.uid;
+                    var count = data[uid] || 0;
+                    var badge = li.querySelector('.chat-unread-badge');
+                    if (count > 0) {
+                        li.classList.add('has-unread');
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'chat-unread-badge';
+                            li.querySelector('a').appendChild(badge);
+                        }
+                        badge.textContent = count;
+                    } else {
+                        li.classList.remove('has-unread');
+                        if (badge) badge.remove();
+                    }
+                });
+            }).catch(function () { });
+    }
+    updateSidebarBadges();
+    setInterval(updateSidebarBadges, 5000);
+
+    // Sidebar search
+    var sideSearch = document.getElementById('chat-search');
+    if (sideSearch) {
+        sideSearch.addEventListener('input', function () {
+            var q = this.value.toLowerCase();
+            document.querySelectorAll('.chat-user-row').forEach(function (li) {
+                li.style.display = li.dataset.name.includes(q) ? '' : 'none';
+            });
+        });
+    }
+}) ();
+</script>
+{% endblock %}

@@ -4,7 +4,33 @@
 {% block title %}داشبورد حضور و غیاب{% endblock %}
 
 {% block content %}
-<section class="dash-hero reveal" id="hero">
+{# ── Nav drawer ── #}
+<div class="page-nav-rail open" id="page-nav-rail">
+    <button class="page-nav-toggle" id="nav-rail-toggle" aria-label="منو">
+        <svg class="nav-burger" viewBox="0 0 20 14" fill="none">
+            <line class="b1" x1="0" y1="1" x2="20" y2="1" />
+            <line class="b2" x1="3" y1="7" x2="20" y2="7" />
+            <line class="b3" x1="0" y1="13" x2="20" y2="13" />
+        </svg>
+    </button>
+    <div class="page-nav-drawer">
+        <a href="{% url 'task:dashboard' %}" class="btn btn-glow">🏠 داشبورد</a>
+        <a href="{% url 'account:profile' %}" class="btn btn-outline">👤 حساب</a>
+        <a href="{% url 'account:edit_profile' %}" class="btn btn-outline">✏️ ویرایش پروفایل</a>
+        <a href="{% url 'account:attendances' %}" class="btn btn-outline">📋 ترددها</a>
+        <a href="{% url 'account:leaves' %}" class="btn btn-outline">🌿 مرخصی</a>
+        <a href="{% url 'account:chat_list' %}" class="btn btn-outline">💬 پیام‌رسان</a>
+        {% if request.user.is_superuser %}
+        <a href="{% url 'account:employee_management' %}" class="btn btn-outline">👥 کارمندان</a>
+        <a href="{% url 'account:positions_management' %}" class="btn btn-outline">🏷️ سمت‌ها</a>
+        <a href="{% url 'account:leave_management' %}" class="btn btn-outline">📋 مدیریت مرخصی</a>
+        <a href="{% url 'account:site_settings' %}" class="btn btn-outline">⚙️ تنظیمات</a>
+        {% endif %}
+    </div>
+</div>
+<div class="page-nav-backdrop" id="page-nav-backdrop"></div>
+
+<section class="dash-hero reveal in-view page-intro" id="hero">
     <div class="hero-content">
         <p class="kicker">{{ month_label }}</p>
         <h1>سلام {{ request.user.get_full_name|default:request.user.username }}</h1>
@@ -54,11 +80,11 @@
         </div>
         <small class="timer-meta-outside {% if not active_session %}is-idle{% endif %}" id="timer-meta">
             <span class="timer-meta-label" id="timer-meta-label">{% if active_session %}شروع:{% endif %}</span>
-            <bdi class="timer-meta-value" id="timer-meta-value" {% if active_session %}dir="ltr"{% endif %}>
+            <bdi class="timer-meta-value" id="timer-meta-value" {% if active_session %}dir="ltr" {% endif %}>
                 {% if active_session %}
-                    {{ active_session.start_time|jalali_datetime }}
+                {{ active_session.start_time|jalali_datetime }}
                 {% else %}
-                    در انتظار شروع شیفت
+                در انتظار شروع شیفت
                 {% endif %}
             </bdi>
         </small>
@@ -66,22 +92,23 @@
 </section>
 
 <section class="stat-grid">
-    <article class="stat-card reveal" style="--delay:.05s;">
+    <article class="stat-card reveal in-view" style="--delay:.05s;">
         <span>مجموع کار این ماه</span>
         <strong id="monthly-total-time">{{ monthly_total_time_text }}</strong>
         <small id="monthly-sessions-hint">{{ monthly_sessions_count }} تردد ثبت شده</small>
     </article>
 
-    <article class="stat-card reveal" style="--delay:.12s;">
+    <article class="stat-card reveal in-view" style="--delay:.12s;">
         <span>هدف ماهانه</span>
         <strong>{{ monthly_target_hours }} ساعت</strong>
         {% widthratio monthly_total_minutes monthly_target_minutes 100 as progress_percent %}
         <div class="meter">
-            <div class="meter-fill" style="width:{% if progress_percent > 100 %}100{% else %}{{ progress_percent }}{% endif %}%"></div>
+            <div class="meter-fill"
+                style="width:{% if progress_percent > 100 %}100{% else %}{{ progress_percent }}{% endif %}%"></div>
         </div>
     </article>
 
-    <article class="stat-card reveal" style="--delay:.18s;">
+    <article class="stat-card reveal in-view" style="--delay:.18s;">
         <span>مرخصی تاییدشده</span>
         <strong>{{ approved_leave_days }} روز</strong>
         <small>{{ pending_leave_days }} روز در انتظار بررسی</small>
@@ -89,35 +116,40 @@
 </section>
 
 <section class="feature-grid">
-    <article class="glass-card reveal" style="--delay:.1s;">
+    <article class="glass-card reveal in-view" style="--delay:.1s;">
         <header class="card-head">
             <h2>ثبت تردد</h2>
-            <span class="head-badge">Instant Action</span>
+            <span class="head-badge">اجرای سریع</span>
         </header>
         <form method="post" class="stack" id="attendance-form" data-endpoint="{% url 'task:attendance_action' %}">
             {% csrf_token %}
             <label for="note">توضیحات (اختیاری)</label>
             <input id="note" name="note" class="f-input" placeholder="مثال: جلسه مشتری / کار حضوری" />
             <div class="action-row">
-                <button id="start-btn" type="submit" name="action" value="start" class="btn btn-glow" {% if active_session %}disabled{% endif %}>شروع</button>
-                <button id="end-btn" type="submit" name="action" value="end" class="btn btn-sun" {% if not active_session %}disabled{% endif %}>پایان</button>
+                <button id="start-btn" type="submit" name="action" value="start" class="btn btn-glow" {% if
+                    active_session %}disabled{% endif %}>شروع</button>
+                <button id="end-btn" type="submit" name="action" value="end" class="btn btn-sun" {% if not
+                    active_session %}disabled{% endif %}>پایان</button>
             </div>
         </form>
     </article>
 
-    <article class="glass-card reveal" style="--delay:.18s;">
+    <article class="glass-card reveal in-view" style="--delay:.18s;">
         <header class="card-head">
             <h2>دسترسی سریع</h2>
         </header>
         <div class="stack">
             <a href="{% url 'account:leaves' %}" class="btn btn-glow">ثبت و مدیریت مرخصی</a>
-            <a href="{% url 'account:profile' %}" class="btn btn-outline">نمای کلی حساب کاربری</a>
+            <a href="{% url 'account:profile' %}" class="btn btn-outline">نمای کلی حساب کاربری<span id="dash-chat-badge"
+                    style="display:none;margin-right:6px;background:#e53e3e;color:#fff;font-size:.68rem;font-weight:700;border-radius:999px;padding:1px 6px;vertical-align:middle;"></span></a>
         </div>
     </article>
 </section>
 
-<section class="glass-card reveal" style="--delay:.12s;">
-    <header class="card-head"><h2>ترددهای اخیر</h2></header>
+<section class="glass-card reveal in-view" style="--delay:.12s;">
+    <header class="card-head">
+        <h2>ترددهای اخیر</h2>
+    </header>
     <div class="table-shell">
         <table>
             <thead>
@@ -128,35 +160,80 @@
                     <th>توضیح</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="recent-sessions-body">
                 {% for session in recent_sessions %}
-                    <tr>
-                        <td>{{ session.start_time|jalali_datetime }}</td>
-                        <td>{% if session.end_time %}{{ session.end_time|jalali_datetime }}{% else %}<span class="pill pending">فعال</span>{% endif %}</td>
-                        <td>{% if session.end_time %}{{ session.duration_minutes }} دقیقه{% else %}-{% endif %}</td>
-                        <td>{{ session.note|default:'-' }}</td>
-                    </tr>
+                <tr>
+                    <td>{{ session.start_time|jalali_datetime }}</td>
+                    <td>{% if session.end_time %}{{ session.end_time|jalali_datetime }}{% else %}<span
+                            class="pill pending">فعال</span>{% endif %}</td>
+                    <td>{% if session.end_time %}{{ session.duration_minutes|minutes_to_hours }} ساعت{% else %}-{% endif
+                        %}</td>
+                    <td>{{ session.note|default:'-' }}</td>
+                </tr>
                 {% empty %}
-                    <tr><td colspan="4">هنوز ترددی ثبت نشده است.</td></tr>
+                <tr>
+                    <td colspan="4">هنوز ترددی ثبت نشده است.</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </section>
 
+{# ── کارمندان آنلاین ── #}
+<section class="glass-card reveal in-view" style="--delay:.12s;">
+    <header class="card-head">
+        <h2>
+            <span class="online-dot-pulse"></span>
+            آنلاین همین الان
+        </h2>
+    </header>
+    <div class="online-employees-list">
+        {# خود کاربر جاری #}
+        <div class="online-emp-item online-emp-me">
+            {% if user_avatar_url %}<img src="{{ user_avatar_url }}" class="online-emp-avatar"
+                style="border-radius:50%;object-fit:cover;">{% else %}<span class="online-emp-avatar">{{
+                request.user.get_full_name|default:request.user.username|slice:':1' }}</span>{% endif %}
+            <div class="online-emp-info">
+                <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                <span>شما</span>
+            </div>
+            <span class="online-badge">آنلاین</span>
+        </div>
+        {% for emp in online_employees %}
+        <div class="online-emp-item">
+            {% if emp.user.employee_profile.avatar %}<img src="{{ emp.user.employee_profile.avatar.url }}"
+                class="online-emp-avatar" style="border-radius:50%;object-fit:cover;">{% else %}<span
+                class="online-emp-avatar">{{ emp.user.get_full_name|default:emp.user.username|slice:':1' }}</span>{%
+            endif %}
+            <div class="online-emp-info">
+                <strong>{{ emp.user.get_full_name|default:emp.user.username }}</strong>
+                <span>{{ emp.job_title|default:'کارمند' }}</span>
+            </div>
+            <span class="online-badge">آنلاین</span>
+        </div>
+        {% empty %}
+        {% endfor %}
+        {% if not online_employees %}
+        <p class="online-empty">فقط شما آنلاین هستید.</p>
+        {% endif %}
+    </div>
+</section>
+
 {% if request.user.is_superuser %}
-<section class="glass-card reveal" style="--delay:.15s;">
+<section class="glass-card reveal in-view" style="--delay:.15s;">
     <header class="card-head split-head">
         <h2>کنترل سوپر یوزر</h2>
         <a href="{% url 'account:employee_management' %}" class="btn btn-outline">افزودن کارمند</a>
     </header>
 
     {% if team_overview %}
-        <div class="mini-stat-row">
-            <article class="mini-stat"><span>کارمندان</span><strong>{{ team_overview.employees_count }}</strong></article>
-            <article class="mini-stat"><span>آنلاین</span><strong>{{ team_overview.active_now }}</strong></article>
-            <article class="mini-stat"><span>مرخصی در انتظار</span><strong>{{ team_overview.pending_leaves }}</strong></article>
-        </div>
+    <div class="mini-stat-row">
+        <article class="mini-stat"><span>کارمندان</span><strong>{{ team_overview.employees_count }}</strong></article>
+        <article class="mini-stat"><span>آنلاین</span><strong>{{ team_overview.active_now }}</strong></article>
+        <article class="mini-stat"><span>مرخصی در انتظار</span><strong>{{ team_overview.pending_leaves }}</strong>
+        </article>
+    </div>
     {% endif %}
 
     <div class="table-shell">
@@ -171,27 +248,32 @@
             </thead>
             <tbody>
                 {% for leave in pending_team_leaves %}
-                    <tr>
-                        <td>{{ leave.user.get_full_name|default:leave.user.username }}</td>
-                        <td>
-                            {% if leave.leave_type == 'hourly' %}
-                                {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{ leave.end_time|time:'H:i' }}
-                            {% else %}
-                                {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
-                            {% endif %}
-                        </td>
-                        <td>{{ leave.reason|default:'-' }}</td>
-                        <td>
-                            <form method="post" class="action-row">
-                                {% csrf_token %}
-                                <input type="hidden" name="leave_id" value="{{ leave.id }}">
-                                <button type="submit" name="action" value="approve_leave" class="btn btn-xs btn-glow">تایید</button>
-                                <button type="submit" name="action" value="reject_leave" class="btn btn-xs btn-danger">رد</button>
-                            </form>
-                        </td>
-                    </tr>
+                <tr>
+                    <td>{{ leave.user.get_full_name|default:leave.user.username }}</td>
+                    <td>
+                        {% if leave.leave_type == 'hourly' %}
+                        {{ leave.leave_date|jalali_date }} - {{ leave.start_time|time:'H:i' }} تا {{
+                        leave.end_time|time:'H:i' }}
+                        {% else %}
+                        {{ leave.start_date|jalali_date }} تا {{ leave.end_date|jalali_date }}
+                        {% endif %}
+                    </td>
+                    <td>{{ leave.reason|default:'-' }}</td>
+                    <td>
+                        <form method="post" class="action-row">
+                            {% csrf_token %}
+                            <input type="hidden" name="leave_id" value="{{ leave.id }}">
+                            <button type="submit" name="action" value="approve_leave"
+                                class="btn btn-xs btn-glow">تایید</button>
+                            <button type="submit" name="action" value="reject_leave"
+                                class="btn btn-xs btn-danger">رد</button>
+                        </form>
+                    </td>
+                </tr>
                 {% empty %}
-                    <tr><td colspan="4">درخواستی برای بررسی وجود ندارد.</td></tr>
+                <tr>
+                    <td colspan="4">درخواستی برای بررسی وجود ندارد.</td>
+                </tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -200,227 +282,291 @@
 {% endif %}
 
 <script>
+    document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in-view'); });
+
     (function () {
-        let isActive = {{ active_session|yesno:'true,false' }};
-        let totalSeconds = Number('{{ active_elapsed_seconds|default:0 }}');
-        const minCloseSeconds = 60;
-        const targetSeconds = Number('{{ daily_target_seconds|default:28800 }}') || (8 * 3600);
+        let isActive = {{ active_session| yesno: "true,false"
+    }};
+    let totalSeconds = Number('{{ active_elapsed_seconds|default:0 }}');
+    const minCloseSeconds = 60;
+    const targetSeconds = Number('{{ daily_target_seconds|default:28800 }}') || (8 * 3600);
 
-        const hourEl = document.getElementById('clock-hour');
-        const minuteEl = document.getElementById('clock-minute');
-        const secondEl = document.getElementById('clock-second');
-        const timerMetaEl = document.getElementById('timer-meta');
-        const timerMetaLabelEl = document.getElementById('timer-meta-label');
-        const timerMetaValueEl = document.getElementById('timer-meta-value');
-        const ringEl = document.getElementById('timer-ring');
-        const overflowBadgeEl = document.getElementById('overflow-badge');
-        const attendanceForm = document.getElementById('attendance-form');
-        const startBtn = document.getElementById('start-btn');
-        const endBtn = document.getElementById('end-btn');
-        const timerWidget = document.getElementById('timer-widget');
-        const monthlyTotalEl = document.getElementById('monthly-total-time');
-        const monthlySessionsHintEl = document.getElementById('monthly-sessions-hint');
-        const monthSessionsChipEl = document.getElementById('month-sessions-chip');
-        const lastClock = {
-            hour: null,
-            minute: null,
-            second: null
+    const hourEl = document.getElementById('clock-hour');
+    const minuteEl = document.getElementById('clock-minute');
+    const secondEl = document.getElementById('clock-second');
+    const timerMetaEl = document.getElementById('timer-meta');
+    const timerMetaLabelEl = document.getElementById('timer-meta-label');
+    const timerMetaValueEl = document.getElementById('timer-meta-value');
+    const ringEl = document.getElementById('timer-ring');
+    const overflowBadgeEl = document.getElementById('overflow-badge');
+    const attendanceForm = document.getElementById('attendance-form');
+    const startBtn = document.getElementById('start-btn');
+    const endBtn = document.getElementById('end-btn');
+    const timerWidget = document.getElementById('timer-widget');
+    const monthlyTotalEl = document.getElementById('monthly-total-time');
+    const monthlySessionsHintEl = document.getElementById('monthly-sessions-hint');
+    const monthSessionsChipEl = document.getElementById('month-sessions-chip');
+    const recentSessionsBody = document.getElementById('recent-sessions-body');
+    const lastClock = {
+        hour: null,
+        minute: null,
+        second: null
+    };
+
+    function getClockParts(seconds) {
+        return {
+            hour: String(Math.floor(seconds / 3600)).padStart(2, '0'),
+            minute: String(Math.floor((seconds % 3600) / 60)).padStart(2, '0'),
+            second: String(seconds % 60).padStart(2, '0')
         };
+    }
 
-        function getClockParts(seconds) {
-            return {
-                hour: String(Math.floor(seconds / 3600)).padStart(2, '0'),
-                minute: String(Math.floor((seconds % 3600) / 60)).padStart(2, '0'),
-                second: String(seconds % 60).padStart(2, '0')
-            };
+    function animateClockValue(element, unit, value) {
+        if (!element || lastClock[unit] === value) {
+            return;
+        }
+        element.textContent = value;
+        element.classList.remove('tick');
+        void element.offsetWidth;
+        element.classList.add('tick');
+        lastClock[unit] = value;
+    }
+
+    function renderClock(seconds) {
+        const parts = getClockParts(seconds);
+        animateClockValue(hourEl, 'hour', parts.hour);
+        animateClockValue(minuteEl, 'minute', parts.minute);
+        animateClockValue(secondEl, 'second', parts.second);
+    }
+
+    function showToast(message, type) {
+        const shell = document.querySelector('.app-shell');
+        let stack = document.querySelector('.messages-stack');
+        if (!stack) {
+            stack = document.createElement('section');
+            stack.className = 'stack messages-stack';
+            shell.prepend(stack);
         }
 
-        function animateClockValue(element, unit, value) {
-            if (!element || lastClock[unit] === value) {
-                return;
-            }
-            element.textContent = value;
-            element.classList.remove('tick');
-            void element.offsetWidth;
-            element.classList.add('tick');
-            lastClock[unit] = value;
+        const toast = document.createElement('article');
+        toast.className = 'toast ' + (type || 'success');
+        toast.textContent = message;
+        stack.prepend(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-4px)';
+            setTimeout(() => toast.remove(), 260);
+        }, 3200);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderRecentSessions(rows) {
+        if (!recentSessionsBody) {
+            return;
         }
 
-        function renderClock(seconds) {
-            const parts = getClockParts(seconds);
-            animateClockValue(hourEl, 'hour', parts.hour);
-            animateClockValue(minuteEl, 'minute', parts.minute);
-            animateClockValue(secondEl, 'second', parts.second);
+        if (!Array.isArray(rows) || rows.length === 0) {
+            recentSessionsBody.innerHTML = '<tr><td colspan="4">هنوز ترددی ثبت نشده است.</td></tr>';
+            return;
         }
 
-        function showToast(message, type) {
-            const shell = document.querySelector('.app-shell');
-            let stack = document.querySelector('.messages-stack');
-            if (!stack) {
-                stack = document.createElement('section');
-                stack.className = 'stack messages-stack';
-                shell.prepend(stack);
-            }
+        recentSessionsBody.innerHTML = rows.map((row) => {
+            const endCell = row.is_active
+                ? '<span class="pill pending">فعال</span>'
+                : escapeHtml(row.end_at);
+            const durationCell = row.is_active
+                ? '-'
+                : (escapeHtml(row.duration_hours) + ' ساعت');
 
-            const toast = document.createElement('article');
-            toast.className = 'toast ' + (type || 'success');
-            toast.textContent = message;
-            stack.prepend(toast);
+            return (
+                '<tr>'
+                + '<td>' + escapeHtml(row.start_at) + '</td>'
+                + '<td>' + endCell + '</td>'
+                + '<td>' + durationCell + '</td>'
+                + '<td>' + escapeHtml(row.note || '-') + '</td>'
+                + '</tr>'
+            );
+        }).join('');
+    }
 
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-4px)';
-                setTimeout(() => toast.remove(), 260);
-            }, 3200);
+    function renderTimerMeta(metaText) {
+        if (!timerMetaEl || !timerMetaLabelEl || !timerMetaValueEl) {
+            return;
         }
 
-        function renderTimerMeta(metaText) {
-            if (!timerMetaEl || !timerMetaLabelEl || !timerMetaValueEl) {
-                return;
-            }
-
-            const text = String(metaText || '').trim();
-            if (text.startsWith('شروع:')) {
-                timerMetaLabelEl.textContent = 'شروع:';
-                timerMetaValueEl.textContent = text.replace(/^شروع:\s*/, '');
-                timerMetaValueEl.setAttribute('dir', 'ltr');
-                timerMetaEl.classList.remove('is-idle');
-                return;
-            }
-
-            timerMetaLabelEl.textContent = '';
-            timerMetaValueEl.textContent = text || 'در انتظار شروع شیفت';
-            timerMetaValueEl.removeAttribute('dir');
-            timerMetaEl.classList.add('is-idle');
+        const text = String(metaText || '').trim();
+        if (text.startsWith('شروع:')) {
+            timerMetaLabelEl.textContent = 'شروع:';
+            timerMetaValueEl.textContent = text.replace(/^شروع:\s*/, '');
+            timerMetaValueEl.setAttribute('dir', 'ltr');
+            timerMetaEl.classList.remove('is-idle');
+            return;
         }
 
-        function drawTimer() {
-            renderClock(totalSeconds);
+        timerMetaLabelEl.textContent = '';
+        timerMetaValueEl.textContent = text || 'در انتظار شروع شیفت';
+        timerMetaValueEl.removeAttribute('dir');
+        timerMetaEl.classList.add('is-idle');
+    }
 
-            const rawProgress = totalSeconds / targetSeconds;
-            const mainProgress = Math.min(1, rawProgress);
-            const loops = Math.floor(rawProgress);
-            const overflowProgress = rawProgress > 1 ? rawProgress - loops : 0;
+    function drawTimer() {
+        renderClock(totalSeconds);
 
-            ringEl.style.setProperty('--ring-progress', mainProgress.toFixed(4));
-            ringEl.style.setProperty('--ring-overflow', overflowProgress.toFixed(4));
+        const rawProgress = totalSeconds / targetSeconds;
+        const mainProgress = Math.min(1, rawProgress);
+        const loops = Math.floor(rawProgress);
+        const overflowProgress = rawProgress > 1 ? rawProgress - loops : 0;
 
-            const overflowOn = rawProgress > 1;
-            ringEl.classList.toggle('overflow-on', overflowOn);
-            overflowBadgeEl.classList.toggle('show', overflowOn);
-            if (overflowOn) {
-                overflowBadgeEl.textContent = '+' + loops + ' دور';
-            }
+        ringEl.style.setProperty('--ring-progress', mainProgress.toFixed(4));
+        ringEl.style.setProperty('--ring-overflow', overflowProgress.toFixed(4));
 
-            updateEndLock();
+        const overflowOn = rawProgress > 1;
+        ringEl.classList.toggle('overflow-on', overflowOn);
+        overflowBadgeEl.classList.toggle('show', overflowOn);
+        if (overflowOn) {
+            overflowBadgeEl.textContent = '+' + loops + ' دور';
         }
 
-        function updateEndLock() {
-            if (!endBtn) {
-                return;
-            }
+        updateEndLock();
+    }
 
-            if (!isActive) {
-                endBtn.disabled = true;
-                endBtn.title = '';
-                return;
-            }
-
-            const locked = totalSeconds < minCloseSeconds;
-            endBtn.disabled = locked;
-            endBtn.title = locked ? ('برای پایان، ' + (minCloseSeconds - totalSeconds) + ' ثانیه دیگر صبر کنید') : '';
+    function updateEndLock() {
+        if (!endBtn) {
+            return;
         }
 
-        function setActiveState(active) {
-            isActive = active;
-            startBtn.disabled = active;
-            timerWidget.classList.toggle('active', active);
-            if (!active) {
-                totalSeconds = 0;
-            }
+        if (!isActive) {
+            endBtn.disabled = true;
+            endBtn.title = '';
+            return;
+        }
+
+        const locked = totalSeconds < minCloseSeconds;
+        endBtn.disabled = locked;
+        endBtn.title = locked ? ('برای پایان، ' + (minCloseSeconds - totalSeconds) + ' ثانیه دیگر صبر کنید') : '';
+    }
+
+    function setActiveState(active) {
+        isActive = active;
+        startBtn.disabled = active;
+        timerWidget.classList.toggle('active', active);
+        if (!active) {
+            totalSeconds = 0;
+        }
+        drawTimer();
+    }
+
+    drawTimer();
+
+    setInterval(() => {
+        if (isActive) {
+            totalSeconds += 1;
             drawTimer();
         }
+    }, 1000);
 
-        drawTimer();
-
-        setInterval(() => {
-            if (isActive) {
-                totalSeconds += 1;
-                drawTimer();
+    if (attendanceForm) {
+        attendanceForm.addEventListener('submit', async (event) => {
+            const submitter = event.submitter;
+            if (!submitter) {
+                return;
             }
-        }, 1000);
 
-        if (attendanceForm) {
-            attendanceForm.addEventListener('submit', async (event) => {
-                const submitter = event.submitter;
-                if (!submitter) {
+            const action = submitter.value;
+            if (action !== 'start' && action !== 'end') {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (action === 'end' && isActive && totalSeconds < minCloseSeconds) {
+                showToast(
+                    'برای ثبت پایان باید حداقل ۱ دقیقه از شروع بگذرد. '
+                    + (minCloseSeconds - totalSeconds)
+                    + ' ثانیه باقی مانده است.',
+                    'warning'
+                );
+                return;
+            }
+
+            const formData = new FormData(attendanceForm);
+            formData.set('action', action);
+
+            try {
+                const response = await fetch(attendanceForm.dataset.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    showToast(data.message || 'عملیات انجام نشد.', 'error');
                     return;
                 }
 
-                const action = submitter.value;
-                if (action !== 'start' && action !== 'end') {
-                    return;
-                }
+                totalSeconds = Number(data.active_elapsed_seconds || 0);
+                setActiveState(Boolean(data.active_session));
 
-                event.preventDefault();
+                renderTimerMeta(data.active_started_at);
+                monthlyTotalEl.textContent = data.monthly_total_time_text;
+                monthlySessionsHintEl.textContent = data.monthly_sessions_hint;
+                monthSessionsChipEl.textContent = 'تردد ماه: ' + data.monthly_sessions_count;
+                renderRecentSessions(data.recent_sessions);
 
-                if (action === 'end' && isActive && totalSeconds < minCloseSeconds) {
-                    showToast(
-                        'برای ثبت پایان باید حداقل ۱ دقیقه از شروع بگذرد. '
-                            + (minCloseSeconds - totalSeconds)
-                            + ' ثانیه باقی مانده است.',
-                        'warning'
-                    );
-                    return;
-                }
+                showToast(data.message, 'success');
+            } catch (error) {
+                showToast('ارتباط با سرور برقرار نشد.', 'error');
+            }
+        });
+    }
 
-                const formData = new FormData(attendanceForm);
-                formData.set('action', action);
+    renderTimerMeta('{% if active_session %}شروع: {{ active_session.start_time|jalali_datetime }}{% else %}در انتظار شروع شیفت{% endif %}');
 
-                try {
-                    const response = await fetch(attendanceForm.dataset.endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData,
-                        credentials: 'same-origin'
-                    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('in-view');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.2 });
 
-                    const data = await response.json();
-                    if (!response.ok || !data.ok) {
-                        showToast(data.message || 'عملیات انجام نشد.', 'error');
-                        return;
+    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+
+    // Unread chat badge on profile button
+    (function () {
+        var badge = document.getElementById('dash-chat-badge');
+        if (!badge) return;
+        function update() {
+            fetch('{% url "account:chat_unread" %}')
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.count > 0) {
+                        badge.textContent = d.count > 99 ? '99+' : d.count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
                     }
-
-                    totalSeconds = Number(data.active_elapsed_seconds || 0);
-                    setActiveState(Boolean(data.active_session));
-
-                    renderTimerMeta(data.active_started_at);
-                    monthlyTotalEl.textContent = data.monthly_total_time_text;
-                    monthlySessionsHintEl.textContent = data.monthly_sessions_hint;
-                    monthSessionsChipEl.textContent = 'تردد ماه: ' + data.monthly_sessions_count;
-
-                    showToast(data.message, 'success');
-                } catch (error) {
-                    showToast('ارتباط با سرور برقرار نشد.', 'error');
-                }
-            });
+                }).catch(function () { });
         }
-
-        renderTimerMeta('{% if active_session %}شروع: {{ active_session.start_time|jalali_datetime }}{% else %}در انتظار شروع شیفت{% endif %}');
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('in-view');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.2 });
-
-        document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
-
+        update();
+        setInterval(update, 5000);
     })();
+    }) ();
+
+
 </script>
 {% endblock %}

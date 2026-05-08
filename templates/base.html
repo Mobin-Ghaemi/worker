@@ -1,82 +1,252 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}سامانه تردد فارال{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
+
 <body class="{% block body_class %}{% endblock %}">
+    <div class="top-accent" aria-hidden="true"></div>
     <div class="site-pattern" aria-hidden="true"></div>
     <div class="bg-gradient bg-gradient-1" aria-hidden="true"></div>
     <div class="bg-gradient bg-gradient-2" aria-hidden="true"></div>
 
     <header class="main-header">
-        <a href="{% if request.user.is_authenticated %}{% url 'task:dashboard' %}{% else %}{% url 'account:login' %}{% endif %}" class="brand-wrap">
+        <a href="{% if request.user.is_authenticated %}{% url 'task:dashboard' %}{% else %}{% url 'account:login' %}{% endif %}"
+            class="brand-wrap">
             <span class="brand-mark" aria-hidden="true"></span>
             <span class="brand-text">
                 <strong class="brand-title">Faral Timeflow</strong>
                 <small class="brand-sub">سامانه یکپارچه حضور و مرخصی</small>
+                <span class="brand-badge">UX 2.0</span>
             </span>
         </a>
 
-        <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="main-nav">
-            منو
-        </button>
-
         <nav class="main-nav" id="main-nav">
             {% if request.user.is_authenticated %}
-                <a href="{% url 'task:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">داشبورد</a>
-                <a href="{% url 'account:profile' %}" class="nav-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">حساب کاربری</a>
-                <a href="{% url 'account:leaves' %}" class="nav-link {% if request.resolver_match.url_name == 'leaves' %}active{% endif %}">مرخصی‌ها</a>
-                {% if request.user.is_superuser %}
-                    <a href="{% url 'account:employee_management' %}" class="nav-link {% if request.resolver_match.url_name == 'employee_management' %}active{% endif %}">مدیریت کارمندان</a>
-                {% endif %}
-                <a href="/admin/" target="_blank" rel="noopener" class="nav-link">ادمین</a>
-                <form method="post" action="{% url 'account:logout' %}" class="inline-form">
-                    {% csrf_token %}
-                    <button type="submit" class="nav-link nav-button">خروج</button>
-                </form>
+            <div class="user-menu" id="user-menu">
+                <button type="button" class="user-menu-trigger" id="user-menu-trigger" aria-haspopup="true"
+                    aria-expanded="false">
+                    {% if user_avatar_url %}<img src="{{ user_avatar_url }}" alt="آواتار" class="user-avatar-sm"
+                        style="width:32px;height:32px;border-radius:50%;object-fit:cover;padding:0;">{% else %}<span
+                        class="user-avatar-sm">{{ request.user.get_full_name|default:request.user.username|slice:':1'
+                        }}</span>{% endif %}
+                    <span class="user-menu-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+                    <span id="nav-trigger-badge"
+                        style="display:none;background:#e53e3e;color:#fff;font-size:.62rem;font-weight:700;border-radius:999px;padding:1px 5px;line-height:1.4;margin-right:2px;"></span>
+                    <svg class="user-menu-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                        <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                </button>
+                <div class="user-dropdown" id="user-dropdown" role="menu">
+                    <a href="{% url 'account:profile' %}" class="user-dd-item" role="menuitem">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        حساب کاربری
+                    </a>
+                    <a href="{% url 'account:chat_list' %}" class="user-dd-item" role="menuitem">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        پیام‌رسان
+                        <span class="nav-chat-badge" id="nav-chat-badge" style="display:none;"></span>
+                    </a>
+                    {% if request.user.is_superuser %}
+                    <a href="{% url 'account:employee_management' %}" class="user-dd-item" role="menuitem">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        مدیریت کارمندان
+                    </a>
+                    <a href="{% url 'account:site_settings' %}" class="user-dd-item" role="menuitem">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round">
+                            <circle cx="12" cy="12" r="3" />
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                        </svg>
+                        تنظیمات سایت
+                    </a>
+                    {% endif %}
+                    <div class="user-dd-sep"></div>
+                    <form method="post" action="{% url 'account:logout' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="user-dd-item user-dd-logout" role="menuitem">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                <polyline points="16 17 21 12 16 7" />
+                                <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            خروج
+                        </button>
+                    </form>
+                </div>
+            </div>
             {% else %}
-                <a href="{% url 'account:login' %}" class="nav-link">ورود</a>
+            <a href="{% url 'account:login' %}" class="nav-link">ورود</a>
             {% endif %}
         </nav>
     </header>
 
     <main class="app-shell" id="main-content">
         {% if messages %}
-            <section class="stack messages-stack">
-                {% for message in messages %}
-                    <article class="toast {{ message.tags }}">{{ message }}</article>
-                {% endfor %}
-            </section>
+        <section class="stack messages-stack">
+            {% for message in messages %}
+            <article class="toast {{ message.tags }}">{{ message }}</article>
+            {% endfor %}
+        </section>
         {% endif %}
 
         {% block content %}{% endblock %}
     </main>
 
     <script>
+        // ── Global nav-rail handler (works for all pages) ──
         (function () {
-            const toggleBtn = document.getElementById('nav-toggle');
-            const nav = document.getElementById('main-nav');
+            var railId = document.getElementById('page-nav-rail') ? 'page-nav-rail' : 'chat-nav-rail';
+            var bdId = document.getElementById('page-nav-backdrop') ? 'page-nav-backdrop' : 'chat-nav-backdrop';
+            var rail = document.getElementById(railId);
+            var backdrop = document.getElementById(bdId);
+            var toggle = document.getElementById('nav-rail-toggle');
+            if (!rail || !toggle) return;
+            function setOpen(open) {
+                if (open) {
+                    rail.classList.add('open');
+                    document.body.style.paddingRight = '210px';
+                } else {
+                    rail.classList.remove('open');
+                    document.body.style.paddingRight = '';
+                }
+            }
+            setOpen(rail.classList.contains('open'));
+            toggle.addEventListener('click', function () {
+                setOpen(!rail.classList.contains('open'));
+            });
+            if (backdrop) {
+                backdrop.addEventListener('click', function () { setOpen(false); });
+            }
+        })();
+    </script>
 
-            if (!toggleBtn || !nav) {
-                return;
+    <script>
+        (function () {
+            var trigger = document.getElementById('user-menu-trigger');
+            var dropdown = document.getElementById('user-dropdown');
+            var menu = document.getElementById('user-menu');
+            if (!trigger || !dropdown) return;
+
+            function openMenu() {
+                dropdown.classList.add('open');
+                trigger.setAttribute('aria-expanded', 'true');
+            }
+            function closeMenu() {
+                dropdown.classList.remove('open');
+                trigger.setAttribute('aria-expanded', 'false');
             }
 
-            toggleBtn.addEventListener('click', function () {
-                const isOpen = nav.classList.toggle('open');
-                toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            trigger.addEventListener('click', function (e) {
+                e.stopPropagation();
+                dropdown.classList.contains('open') ? closeMenu() : openMenu();
             });
 
-            nav.querySelectorAll('a, button').forEach((item) => {
-                item.addEventListener('click', function () {
-                    nav.classList.remove('open');
-                    toggleBtn.setAttribute('aria-expanded', 'false');
-                });
+            document.addEventListener('click', function (e) {
+                if (!menu.contains(e.target)) closeMenu();
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeMenu();
             });
         })();
     </script>
+
+    {% if request.user.is_authenticated %}
+    <script>
+        (function () {
+            var badge = document.getElementById('nav-chat-badge');
+            var triggerBadge = document.getElementById('nav-trigger-badge');
+            function fetchUnread() {
+                fetch('{% url "account:chat_unread" %}')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        var label = d.count > 99 ? '99+' : d.count;
+                        if (d.count > 0) {
+                            if (badge) { badge.textContent = label; badge.style.display = 'inline-flex'; }
+                            if (triggerBadge) { triggerBadge.textContent = label; triggerBadge.style.display = 'inline-block'; }
+                        } else {
+                            if (badge) badge.style.display = 'none';
+                            if (triggerBadge) triggerBadge.style.display = 'none';
+                        }
+                    }).catch(function () { });
+            }
+            fetchUnread();
+            setInterval(fetchUnread, 5000);
+        })();
+    </script>
+
+    {% if request.user.is_superuser %}
+    <script>
+        (function () {
+            function fetchPendingLeaves() {
+                fetch('{% url "account:pending_leaves_count" %}')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        var count = d.count || 0;
+                        var label = count > 99 ? '99+' : String(count);
+
+                        // Badge روی دکمه toggle
+                        var toggleBtns = document.querySelectorAll('.page-nav-toggle, #nav-rail-toggle');
+                        toggleBtns.forEach(function (btn) {
+                            var existing = btn.querySelector('.nav-toggle-badge');
+                            if (count > 0) {
+                                if (!existing) {
+                                    existing = document.createElement('span');
+                                    existing.className = 'nav-toggle-badge';
+                                    btn.style.position = 'relative';
+                                    btn.appendChild(existing);
+                                }
+                                existing.textContent = label;
+                                existing.style.display = 'inline-flex';
+                            } else if (existing) {
+                                existing.style.display = 'none';
+                            }
+                        });
+
+                        // Badge روی لینک مدیریت مرخصی در drawer
+                        document.querySelectorAll('.page-nav-drawer a[href*="leave_management"], .page-nav-drawer a[href*="leaves/manage"]').forEach(function (link) {
+                            var b = link.querySelector('.nav-leave-badge');
+                            if (count > 0) {
+                                if (!b) {
+                                    b = document.createElement('span');
+                                    b.className = 'nav-leave-badge';
+                                    link.appendChild(b);
+                                }
+                                b.textContent = label;
+                            } else if (b) {
+                                b.remove();
+                            }
+                        });
+                    }).catch(function () { });
+            }
+            fetchPendingLeaves();
+            setInterval(fetchPendingLeaves, 10000);
+        })();
+    </script>
+    {% endif %}
+    {% endif %}
 </body>
+
 </html>

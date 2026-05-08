@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>دسترسی مسدود شد</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+
+<body>
+    <div class="top-accent" aria-hidden="true"></div>
+    <div class="bg-gradient bg-gradient-1" aria-hidden="true"></div>
+    <div class="bg-gradient bg-gradient-2" aria-hidden="true"></div>
+
+    <main style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+        <div class="glass-card" style="max-width:460px;width:100%;padding:40px 36px;text-align:center;">
+            <div
+                style="width:64px;height:64px;border-radius:18px;background:rgba(255,64,100,.1);border:1px solid rgba(255,64,100,.2);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e02246" stroke-width="2"
+                    stroke-linecap="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+            </div>
+            <h1 style="color:#b91c3c;font-size:1.4rem;margin-bottom:10px;">دسترسی مسدود شد</h1>
+            <p style="color:var(--text-muted);font-size:.9rem;line-height:1.8;margin-bottom:20px;">
+                شما از شبکه‌ای متصل شده‌اید که اجازه دسترسی ندارد.<br>
+                لطفاً از شبکه داخلی دفتر وارد شوید.
+            </p>
+            <div
+                style="background:#f5f8ff;border-radius:12px;padding:12px 16px;display:inline-block;font-size:.82rem;color:#4a6080;direction:ltr;">
+                آی‌پی شما: <strong>{{ client_ip }}</strong>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>
